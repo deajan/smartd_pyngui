@@ -1,0 +1,778 @@
+<?xml version='1.0' encoding='utf-8'?>
+<interface>
+  <object class="tk.Frame" id="MainFrame">
+    <property name="height">600</property>
+    <property name="width">580</property>
+    <layout>
+      <property name="column">0</property>
+      <property name="propagate">True</property>
+      <property name="row">0</property>
+      <property name="sticky">nsew</property>
+      <rows>
+        <row id="0">
+          <property name="minsize">0</property>
+          <property name="weight">0</property>
+        </row>
+      </rows>
+    </layout>
+    <child>
+      <object class="tk.Frame" id="SubFrame">
+        <layout>
+          <property name="column">0</property>
+          <property name="propagate">True</property>
+          <property name="row">0</property>
+          <property name="sticky">nsew</property>
+        </layout>
+        <child>
+          <object class="pygubu.builder.widgets.scrolledframe" id="ScrolledFrame">
+            <property name="height">600</property>
+            <property name="padding">10</property>
+            <property name="scrolltype">both</property>
+            <property name="width">600</property>
+            <layout>
+              <property name="column">0</property>
+              <property name="ipadx">203</property>
+              <property name="ipady">200</property>
+              <property name="propagate">True</property>
+              <property name="row">0</property>
+              <property name="sticky">nsew</property>
+              <columns>
+                <column id="0">
+                  <property name="minsize">586</property>
+                  <property name="weight">1</property>
+                </column>
+              </columns>
+              <rows>
+                <row id="0">
+                  <property name="weight">1</property>
+                </row>
+                <row id="1">
+                  <property name="weight">1</property>
+                </row>
+                <row id="2">
+                  <property name="weight">1</property>
+                </row>
+                <row id="3">
+                  <property name="weight">1</property>
+                </row>
+                <row id="4">
+                  <property name="weight">1</property>
+                </row>
+                <row id="5">
+                  <property name="weight">1</property>
+                </row>
+                <row id="6">
+                  <property name="weight">1</property>
+                </row>
+                <row id="7">
+                  <property name="weight">1</property>
+                </row>
+                <row id="8">
+                  <property name="weight">1</property>
+                </row>
+              </rows>
+            </layout>
+            <child>
+              <object class="tk.LabelFrame" id="DriveDetection">
+                <property name="height">2000</property>
+                <property name="padx">10</property>
+                <property name="pady">10</property>
+                <property name="text" translatable="yes">Drive Detection</property>
+                <property name="width">4000</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="propagate">True</property>
+                  <property name="row">3</property>
+                  <property name="sticky">nsew</property>
+                  <columns>
+                    <column id="0">
+                      <property name="pad">0</property>
+                      <property name="weight">0</property>
+                    </column>
+                    <column id="1">
+                      <property name="pad">0</property>
+                      <property name="weight">0</property>
+                    </column>
+                  </columns>
+                  <rows>
+                    <row id="0">
+                      <property name="minsize">0</property>
+                      <property name="pad">0</property>
+                      <property name="weight">2</property>
+                    </row>
+                    <row id="1">
+                      <property name="pad">0</property>
+                      <property name="weight">0</property>
+                    </row>
+                  </rows>
+                </layout>
+                <child>
+                  <object class="tk.Radiobutton" id="AutoDetectDrives">
+                    <property name="command">enableAutoDetection</property>
+                    <property name="text" translatable="yes">Detect drives</property>
+                    <property name="value">True</property>
+                    <property name="variable">boolean:AutoDetectDrives</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Radiobutton" id="ManualDetectDrives">
+                    <property name="command">disableAutoDetection</property>
+                    <property name="text" translatable="yes">Manually list drives</property>
+                    <property name="value">False</property>
+                    <property name="variable">boolean:AutoDetectDrives</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">nw</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Text" id="ManualDriveList">
+                    <property name="background">#aaaaaa</property>
+                    <property name="height">4</property>
+                    <property name="text" translatable="yes">/dev/csmi0,0 &lt;-- examples
+/dev/csmi0,1
+/dev/sda</property>
+                    <property name="width">45</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="rowspan">1</property>
+                      <property name="sticky">e</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Message" id="DriveDetectionMessage">
+                    <property name="text" translatable="yes">Even under windows, smartd addresses drives with /dev/sdX where X is your drive number.
+Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and Y drive number. See smartd documentation.</property>
+                    <property name="width">350</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="propagate">True</property>
+                      <property name="row">2</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="tk.LabelFrame" id="LongTests">
+                <property name="height">50</property>
+                <property name="padx">10</property>
+                <property name="pady">10</property>
+                <property name="text" translatable="yes">Long self-tests</property>
+                <property name="width">75</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="propagate">True</property>
+                  <property name="row">4</property>
+                  <property name="sticky">nsew</property>
+                </layout>
+                <child>
+                  <object class="tk.Label" id="Label_2">
+                    <property name="text" translatable="yes">Execute a long self-test at</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="columnspan">4</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="LongTestMon">
+                    <property name="text" translatable="yes">Mon</property>
+                    <property name="variable">boolean:LongTestMon</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="LongTestTue">
+                    <property name="text" translatable="yes">Tue</property>
+                    <property name="variable">boolean:LongTestTue</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="LongTestWed">
+                    <property name="text" translatable="yes">Wed</property>
+                    <property name="variable">boolean:LongTestWed</property>
+                    <layout>
+                      <property name="column">2</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="LongTestThu">
+                    <property name="text" translatable="yes">Thu</property>
+                    <property name="variable">boolean:LongTestThu</property>
+                    <layout>
+                      <property name="column">3</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="LongTestFri">
+                    <property name="text" translatable="yes">Fri</property>
+                    <property name="variable">boolean:LongTestFri</property>
+                    <layout>
+                      <property name="column">4</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="LongTestSat">
+                    <property name="text" translatable="yes">Sat</property>
+                    <property name="variable">boolean:LongTestSat</property>
+                    <layout>
+                      <property name="column">5</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="LongTestSun">
+                    <property name="text" translatable="yes">Sun</property>
+                    <property name="variable">boolean:LongTestSun</property>
+                    <layout>
+                      <property name="column">6</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="ttk.Label" id="Label_8">
+                    <property name="text" translatable="yes">H every</property>
+                    <layout>
+                      <property name="column">5</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="ttk.Combobox" id="LongTestHour">
+                    <property name="textvariable">int:LongTestHour</property>
+                    <property name="values">00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23</property>
+                    <property name="width">4</property>
+                    <layout>
+                      <property name="column">4</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                    </layout>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="tk.LabelFrame" id="ShortTests">
+                <property name="height">50</property>
+                <property name="padx">10</property>
+                <property name="pady">10</property>
+                <property name="text" translatable="yes">Short self-tests</property>
+                <property name="width">500</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="propagate">True</property>
+                  <property name="row">5</property>
+                  <property name="sticky">nsew</property>
+                </layout>
+                <child>
+                  <object class="ttk.Label" id="Label_4">
+                    <property name="text" translatable="yes">Execute a short self-test at</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="columnspan">4</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ShortTestMon">
+                    <property name="text" translatable="yes">Mon</property>
+                    <property name="variable">boolean:ShortTestMon</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ShortTestTue">
+                    <property name="text" translatable="yes">Tue</property>
+                    <property name="variable">boolean:ShortTestTue</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ShortTestWed">
+                    <property name="text" translatable="yes">Wed</property>
+                    <property name="variable">boolean:ShortTestWed</property>
+                    <layout>
+                      <property name="column">2</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ShortTestThu">
+                    <property name="text" translatable="yes">Thu</property>
+                    <property name="variable">boolean:ShortTestThu</property>
+                    <layout>
+                      <property name="column">3</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ShortTestFri">
+                    <property name="text" translatable="yes">Fri</property>
+                    <property name="variable">boolean:ShortTestFri</property>
+                    <layout>
+                      <property name="column">4</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ShortTestSat">
+                    <property name="text" translatable="yes">Sat</property>
+                    <property name="variable">boolean:ShortTestSat</property>
+                    <layout>
+                      <property name="column">5</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ShortTestSun">
+                    <property name="text" translatable="yes">Sun</property>
+                    <property name="variable">boolean:ShortTestSun</property>
+                    <layout>
+                      <property name="column">6</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Label" id="Label_7">
+                    <property name="text" translatable="yes">H every</property>
+                    <layout>
+                      <property name="column">5</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="ttk.Combobox" id="ShortTestHour">
+                    <property name="textvariable">int:ShortTestHour</property>
+                    <property name="values">00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23</property>
+                    <property name="width">4</property>
+                    <layout>
+                      <property name="column">4</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                    </layout>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="tk.LabelFrame" id="Checks">
+                <property name="height">200</property>
+                <property name="padx">10</property>
+                <property name="pady">10</property>
+                <property name="text" translatable="yes">Attribute checks</property>
+                <property name="width">500</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="propagate">True</property>
+                  <property name="row">6</property>
+                  <property name="sticky">nsew</property>
+                </layout>
+                <child>
+                  <object class="tk.Checkbutton" id="CheckSmartHealth">
+                    <property name="text" translatable="yes">Check S.M.A.R.T health</property>
+                    <property name="variable">boolean:CheckSmartHealth</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ReportNonZeroCurrentPendingSectors">
+                    <property name="text" translatable="yes">Report non-zero current pending sectors</property>
+                    <property name="variable">boolean:ReportNonZeroCurrentPendingSectors</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ReportATAErrorIncrease">
+                    <property name="text" translatable="yes">Report ATA errors increase</property>
+                    <property name="variable">boolean:ReportATAErrorIncrease</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ReportOfflineUncorrectableSectorsIncrease">
+                    <property name="text" translatable="yes">Report offline uncorrectable sectors increase</property>
+                    <property name="variable">boolean:ReportOfflineUncorrectableSectorsIncrease</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="ReportSelftestErrorIncrease">
+                    <property name="text" translatable="yes">Report self-test error increase</property>
+                    <property name="variable">boolean:ReportSelftestErrorIncrease</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="propagate">True</property>
+                      <property name="row">2</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="TrackUsageAndPrefailAttributesChanges">
+                    <property name="text" translatable="yes">Track Usage &amp; Prefail attribute changes</property>
+                    <property name="variable">boolean:TrackUsageAndPrefailAttributesChanges</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="propagate">True</property>
+                      <property name="row">2</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="CheckUsageAttributesFailures">
+                    <property name="text" translatable="yes">Check for usage attributes failures</property>
+                    <property name="variable">boolean:CheckUsageAttributesFailures</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="propagate">True</property>
+                      <property name="row">3</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Checkbutton" id="IgnoreTemperatureChanges">
+                    <property name="text" translatable="yes">Ignore temperature changes</property>
+                    <property name="variable">boolean:IgnoreTemperatureChanges</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="propagate">True</property>
+                      <property name="row">3</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="tk.LabelFrame" id="EnergySaving">
+                <property name="height">200</property>
+                <property name="padx">10</property>
+                <property name="pady">10</property>
+                <property name="text" translatable="yes">Energy saving</property>
+                <property name="width">500</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="propagate">True</property>
+                  <property name="row">7</property>
+                  <property name="sticky">nsew</property>
+                </layout>
+                <child>
+                  <object class="ttk.Label" id="Label_5">
+                    <property name="text" translatable="yes">Do not execute self-test when disk is in mode</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                      <property name="sticky">nw</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="ttk.Label" id="Label_6">
+                    <property name="text" translatable="yes">Force test execution after N skipped tests</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="pady">10</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">nw</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="ttk.Combobox" id="SkipTestsNumber">
+                    <property name="textvariable">int:SkipTestsNumber</property>
+                    <property name="values">0 1 2 3 4 5 6 7</property>
+                    <property name="width">4</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="padx">10</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="ttk.Combobox" id="DiskModeSkipTests">
+                    <property name="textvariable">string:DiskModeSkipTests</property>
+                    <property name="values">never sleep standby idle</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="padx">10</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="tk.LabelFrame" id="EmailOptions">
+                <property name="height">200</property>
+                <property name="padx">10</property>
+                <property name="pady">10</property>
+                <property name="text" translatable="yes">Email alert options</property>
+                <property name="width">200</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="propagate">True</property>
+                  <property name="row">8</property>
+                  <property name="sticky">nsew</property>
+                </layout>
+                <child>
+                  <object class="tk.Radiobutton" id="InternalMailer">
+                    <property name="command">enableInternalMailer</property>
+                    <property name="text" translatable="yes">Use system mailer to send alerts to the following addresses (only for unix-like platforms)</property>
+                    <property name="value">True</property>
+                    <property name="variable">boolean:InternalMailer</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="columnspan">2</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Radiobutton" id="ExternalMailer">
+                    <property name="command">disableInternalMailer</property>
+                    <property name="text" translatable="yes">Use external error handling script</property>
+                    <property name="value">False</property>
+                    <property name="variable">boolean:InternalMailer</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="columnspan">2</property>
+                      <property name="propagate">True</property>
+                      <property name="row">2</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Text" id="ExternalScript">
+                    <property name="height">1</property>
+                    <property name="pady">0</property>
+                    <property name="width">68</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="padx">5</property>
+                      <property name="propagate">True</property>
+                      <property name="row">3</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Text" id="DestinationMails">
+                    <property name="height">1</property>
+                    <property name="width">68</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="padx">5</property>
+                      <property name="propagate">True</property>
+                      <property name="row">1</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="ttk.Frame" id="Actions">
+                <property name="height">200</property>
+                <property name="width">200</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="propagate">True</property>
+                  <property name="row">9</property>
+                </layout>
+                <child>
+                  <object class="ttk.Button" id="Button_3">
+                    <property name="command">onSubmit</property>
+                    <property name="text" translatable="yes">Save changes &amp; relaunch smartd service</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="padx">10</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="ttk.Button" id="Button_1">
+                    <property name="command">onExit</property>
+                    <property name="text" translatable="yes">Exit</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="padx">10</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                    </layout>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="tk.Label" id="Title">
+                <property name="font">TkHeadingFont</property>
+                <property name="text" translatable="yes">smartd 5.4+ configuration utility</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="propagate">True</property>
+                  <property name="row">0</property>
+                </layout>
+              </object>
+            </child>
+            <child>
+              <object class="tk.Label" id="Author">
+                <property name="text" translatable="yes">Written in 2012-2016 by Orsiris de Jong - www.netpower.fr</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="propagate">True</property>
+                  <property name="row">1</property>
+                </layout>
+              </object>
+            </child>
+            <child>
+              <object class="tk.LabelFrame" id="ConfigFile">
+                <property name="text" translatable="yes">Configuration file</property>
+                <property name="width">200</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="propagate">True</property>
+                  <property name="row">2</property>
+                  <property name="sticky">nsew</property>
+                </layout>
+                <child>
+                  <object class="tk.Message" id="ConfigFileMessage">
+                    <property name="text" translatable="yes">Using configuration file in:</property>
+                    <property name="width">500</property>
+                    <layout>
+                      <property name="column">0</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="tk.Message" id="ConfigFilePath">
+                    <property name="foreground">#00aa00</property>
+                    <property name="textvariable">string:configFilePath</property>
+                    <property name="width">500</property>
+                    <layout>
+                      <property name="column">1</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                      <property name="sticky">w</property>
+                    </layout>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
