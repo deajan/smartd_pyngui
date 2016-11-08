@@ -11,60 +11,35 @@ class Constants:
 	"""
 	APP_NAME="smartd-pyngui" # Stands for smart daemon python native gui
 	APP_VERSION="0.2"
-	APP_BUILD="2016110601"
+	APP_BUILD="2016110801"
 	APP_DESCRIPTION="smartd v5.4+ daemon config utility"
 	CONTACT="ozy@netpower.fr - http://www.netpower.fr"
 	AUTHOR="Orsiris de Jong"
-	
+
 	IS_STABLE=False
 
 	LOG_FILE=APP_NAME + ".log"
 
 	SMARTD_SERVICE_NAME="smartd"
 	SMARTD_CONF_FILENAME="smartd.conf"
-	
+
 	DEFAULT_UNIX_PATH="/etc/smartd"
 
 	def __setattr__(self, *_):
 		pass
-    
+
 _CONSTANT = Constants
 
-#### IMPORTS ################################################################################################
-
-import sys, getopt
-import os
-import inspect					#TODO: remove from non debug builds
-import platform					# Detect OS
-import re						# Regex handling
-import time						# sleep command
+#### LOGGING & DEBUG CODE ####################################################################################
 
 import logging
 from logging.handlers import RotatingFileHandler
-
-from datetime import datetime
-
-# GUI
-try:
-	import tkinter as tk		# Python 3
-	from tkinter import messagebox
-except:
-	import Tkinter as tk		# Python 2
-	import tkMessageBox as messagebox
-import pygubu					# GUI builder
-
-# py2exe fails with win32serviceutil, nuitka does not
-if platform.system() == "Windows":
-	import win32serviceutil
-	import win32service
-
-#### LOGGING & DEBUG CODE ####################################################################################
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 # Set file log
-logFileHandler = RotatingFileHandler(_CONSTANT.LOG_FILE, 'a', 1000000, 1)
+logFileHandler = RotatingFileHandler(_CONSTANT.LOG_FILE, mode='a', encoding='utf-8', maxBytes=1000000, backupCount=1)
 logFileHandler.setLevel(logging.DEBUG)
 logFileHandler.setFormatter(logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s'))
 logger.addHandler(logFileHandler)
@@ -74,6 +49,37 @@ logStdoutHandler = logging.StreamHandler()
 logStdoutHandler.setLevel(logging.DEBUG) #TODO: Replace with logging.ERROR in production env
 logger.addHandler(logStdoutHandler)
 
+#### IMPORTS ################################################################################################
+
+import sys, getopt
+import os
+import platform					# Detect OS
+import re						# Regex handling
+import time						# sleep command
+import codecs					# unicode encoding
+
+from datetime import datetime
+
+# GUI
+try:
+	import tkinter as tk		# Python 3
+	from tkinter import messagebox
+except:
+	logger.debug("Could not import tkinter for python3, trying Tkinter from python2")
+	import Tkinter as tk		# Python 2
+	import tkMessageBox as messagebox
+
+try:
+	import pygubu					# GUI builder
+except:
+	logger.critical("Cannot find pygubu module. Try installing it with python -m pip install pygubu")
+	sys.exit(1)
+
+# py2exe fails with win32serviceutil, nuitka does not
+if platform.system() == "Windows":
+	import win32serviceutil
+	import win32service
+
 logger.info("Running on python " + platform.python_version() + " / " + str(platform.uname()))
 
 #### ACTUAL APPLICATION ######################################################################################
@@ -82,16 +88,16 @@ CONFIG = 0 # Contains full config as Configuration class
 
 class Configuration:
 	smartConfFile = ""
-	
+
 	def __init__(self, filePath = ''):
 		"""Determine smartd configuration file path"""
-		
+
 		# __file__ variable doesn't exist in frozen py2exe mode, get appRoot
 		try:
 			self.appRoot = os.path.dirname(os.path.abspath(__file__))
 		except:
 			self.appRoot = os.path.dirname(os.path.abspath(sys.argv[0]))
-		
+
 		if len(filePath) > 0:
 			self.smartConfFile = filePath
 			if not os.path.isfile(self.smartConfFile):
@@ -103,7 +109,7 @@ class Configuration:
 					programFilesX86=os.environ["ProgramFiles(x86)"]
 				except:
 					programFilesX86=os.environ["ProgramFiles"]
-					
+
 				try:
 					programFilesX64=os.environ["ProgramW6432"]
 				except:
@@ -122,6 +128,8 @@ class Configuration:
 			else:
 				if os.path.isfile(self.appRoot + os.sep + _CONSTANT.SMARTD_CONF_FILENAME):
 					self.smartConfFile = self.appRoot + os.sep + _CONSTANT.SMARTD_CONF_FILENAME
+				elif os.path.isfile("/etc/smartmontools" + os.sep + _CONSTANT.SMARTD_CONF_FILENAME):
+					self.smartConfFile = "/etc/smartmontools" + os.sep + _CONSTANT.SMARTD_CONF_FILENAME
 				elif os.path.isfile("/etc/smartd" + os.sep + _CONSTANT.SMARTD_CONF_FILENAME):
 					self.smartConfFile = "etc/smartd" + os.sep + _CONSTANT.SMARTD_CONF_FILENAME
 				elif os.path.isfile("/etc" + os.sep + _CONSTANT.SMARTD_CONF_FILENAME):
@@ -130,22 +138,22 @@ class Configuration:
 		if len(self.smartConfFile) == 0:
 			self.smartConfFile = self.appRoot + os.sep + _CONSTANT.SMARTD_CONF_FILENAME
 		else:
-			if len(filePath) == 0:	
+			if len(filePath) == 0:
 				logger.debug("Found configuration file in [" + self.smartConfFile + "].")
 
 class Application:
 	"""pygubu tkinter GUI class"""
-	
+
 	# Standard definitions
 	days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 	testTypes = ['Long', 'Short']
 	energyModes = ['never', 'sleep', 'standby', 'idle']
-	
+
 	# Set defaults
 	driveList = ['DEVICESCAN']
 	configList = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7', '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
 	testsRegex=""
-	
+
 	# Gui parameter mapping
 	parameterMap = [('-H', 'CheckSmartHealth'), 
 					('-C 197+', 'ReportNonZeroCurrentPendingSectors'),
@@ -156,7 +164,7 @@ class Application:
 					('-f', 'CheckUsageAttributesFailures'),
 					('-I 194', 'IgnoreTemperatureChanges')
 	]
-	
+
 	def __init__(self, master):
 		self.master = master
 		self.builder = builder = pygubu.Builder()
@@ -168,10 +176,10 @@ class Application:
 		except Exception as e:
 			logger.critical("Cannot find ui file [" + filePath + "].")
 			logger.debug(e)
-			exit(1)
+			sys.exit(1)
 
 		self.mainwindow = builder.get_object('MainFrame', master)
-		
+
 		# Bind GUI actions to functions
 		self.builder.connect_callbacks(self)
 		callbacks = {
@@ -188,7 +196,7 @@ class Application:
 			self.driveList, self.configList = readSmartdConfFile(CONFIG.smartConfFile)
 		except Exception as e:
 			logger.info("Using default configuration")
-			
+
 		logger.debug("Drive list: " + str(self.driveList))
 		logger.debug("Config list: " + str(self.configList))
 
@@ -198,7 +206,7 @@ class Application:
 		self.builder.get_variable('configFilePath').set(CONFIG.smartConfFile)
 
 		self.applyConfigToGui()
-	
+
 	def applyConfigToGui(self):
 		# Apply config to GUI
 		if "DEVICESCAN" in self.driveList[0]:
@@ -210,7 +218,7 @@ class Application:
 			self.builder.get_object('ManualDriveList', self.master).delete("1.0", "end")
 			for drive in self.driveList:
 				self.builder.get_object('ManualDriveList', self.master).insert("end", drive + "\n")
-		
+
 		# Self test regex GUI setup
 		if '-s' in '\t'.join(self.configList):
 			for i, item in enumerate(self.configList):
@@ -234,7 +242,7 @@ class Application:
 								self.builder.get_object('LongTest' + self.days[int(day.strip("[]"))], self.master).select()
 				if longTest.group(4):
 					self.builder.get_object('LongTestHour', self.master).set(longTest.group(4))
-			
+
 			shortTest = re.search('S/(.+?)/(.+?)/(.+?)/([0-9]*)', self.configList[index])
 			if longTest:
 				#print(shortTest.group(1))
@@ -251,34 +259,35 @@ class Application:
 								self.builder.get_object('ShortTest' + self.days[int(day.strip("[]]"))], self.master).select()
 				if shortTest.group(4):
 					self.builder.get_object('ShortTestHour', self.master).set(shortTest.group(4))
-				
+
 		# Attribute checks GUI setup
 		for map in self.parameterMap:
 			if map[0] in self.configList:
 				self.builder.get_object(map[1], self.master).select()
-		
+
 		# Energy saving GUI setup
 		if '-n' in '\t'.join(self.configList):
 			for i, item in enumerate(self.configList):
 				if '-n' in item:
 					index = i
-			
-			energySaving = self.configList[index].split(',')	
+
+			energySaving = self.configList[index].split(',')
 			for mode in self.energyModes:
 				if mode in energySaving[0]:
 					self.builder.get_object('DiskModeSkipTests', self.master).set(mode)
-			
+
 			if energySaving[1].isdigit():
 				self.builder.get_object('SkipTestsNumber', self.master).set(energySaving[1])
 			#if energySaving[1] == 'q':
 			#TODO: handle q parameter
-			
+
+		#TODO: -m and -M are not exclusive
 		# Get mail options
 		if '-m' in '\t'.join(self.configList):
 			for i, item in enumerate(self.configList):
 				if '-m' in item:
 					index = i
-			
+
 			if '<nomailer>' in self.configList[index]:
 				try:
 					if '-M exec' in self.configList[index + 1]:
@@ -295,7 +304,7 @@ class Application:
 				self.builder.get_object('DestinationMails', self.master).insert("end", self.configList[index].lstrip('-m '))
 				self.builder.get_object('ExternalScript', self.master)['background'] = "#aaaaaa"
 				self.builder.get_object('DestinationMails', self.master)['background'] = "#aaffaa"
- 
+
 	def enableAutoDetection(self):
 		AutoDetect = self.builder.get_variable('AutoDetectDrives').get()
 		if (AutoDetect == True):
@@ -305,20 +314,20 @@ class Application:
 		AutoDetect = self.builder.get_variable('AutoDetectDrives').get()
 		if (AutoDetect == False):
 			self.builder.get_object('ManualDriveList', self.master)['background'] = "#aaffaa"
-			
+
 	def enableInternalMailer(self):
 		if self.builder.get_variable('InternalMailer').get() == True:
 			self.builder.get_object('ExternalScript', self.master)['background'] = "#aaaaaa"
 			self.builder.get_object('DestinationMails', self.master)['background'] = "#aaffaa"
-	
+
 	def disableInternalMailer(self):
 		if self.builder.get_variable('InternalMailer').get() == False:
 			self.builder.get_object('ExternalScript', self.master)['background'] = "#aaffaa"
 			self.builder.get_object('DestinationMails', self.master)['background'] = "#aaaaaa"
-	
+
 	def prepareDriveList(self):
 		self.driveList=[]
-		
+
 		if self.builder.get_variable('AutoDetectDrives').get() == True:
 			self.driveList.append('DEVICESCAN')
 		else:
@@ -331,11 +340,11 @@ class Application:
 			logger.error(msg)
 			messagebox.showinfo("Error", msg)
 			return False
-	
+
 	def prepareTestRegex(self):
 		"""Transforms checkboxes into long / short tests expression for smartd"""
 		#Still not a good implementation after the Inno Setup ugly implementation
-		
+
 		for testType in self.testTypes:
 			regex = ""
 			present = False
@@ -348,22 +357,22 @@ class Application:
 				longRegex = "L/../../" + regex + "/" + str(self.builder.get_variable('LongTestHour').get())
 			elif testType == self.testTypes[1] and present == True:
 				shortRegex = "S/../../" + regex + "/" + str(self.builder.get_variable('ShortTestHour').get())
-		
+
 		if ('longRegex' in locals()) and ('shortRegex' in locals()):
 			self.testsRegex = "-s (" + longRegex + "|" + shortRegex + ")"
 		elif 'longRegex' in locals():
 			self.testsRegex = "-s " + longRegex
 		elif 'shortRegex' in locals():
-			self.testsRegex = "-s " + shortRegex		
-	
+			self.testsRegex = "-s " + shortRegex
+
 	def prepareConfigList(self):
 		"""Prepare a list of arguments for smartd.conf file"""
 		self.configList=[]
-		
+
 		for map in self.parameterMap:
 			if self.builder.get_variable(map[1]).get():
 				self.configList.append(map[0])
-		
+
 		energyMode = self.builder.get_variable('DiskModeSkipTests').get()
 		if energyMode in self.energyModes:
 			energyLine = '-n ' + energyMode
@@ -372,19 +381,27 @@ class Application:
 			energyLine += ',' + str(skipTests)
 		except:
 			pass
+
+		#TODO: handle -q parameter in GUI
+		try:
+			energyLine += ',q'
+		except:
+			pass
+
 		if 'energyLine' in locals():
 			self.configList.append(energyLine)
 
 		self.prepareTestRegex()
-		self.configList.append(self.testsRegex)	
-		
+		self.configList.append(self.testsRegex)
+
+		#TODO: -m root -M exec /some/path can work toghether
 		# Mailer options
 		if self.builder.get_variable('InternalMailer').get() == True:
 			mails = self.builder.get_object('DestinationMails', self.master).get("1.0", "end")
-			if ('@' in mails):
+			if (len(mails) > 0):
 				self.configList.append('-m ' + mails)
 			else:
-				messagebox.showinfo('Error', 'Bogus email list')
+				messagebox.showinfo('Error', 'Bogus destination mail list')
 				return False
 		else:
 			script = self.builder.get_object('ExternalScript', self.master).get("1.0", "end")
@@ -402,7 +419,7 @@ class Application:
 		try:
 			self.prepareDriveList()
 			self.prepareConfigList()
-		
+
 			try:
 				#print(serviceHandler(_CONSTANT.SMARTD_SERVICE_NAME, "status"))
 				serviceHandler(_CONSTANT.SMARTD_SERVICE_NAME, "stop")
@@ -417,25 +434,28 @@ class Application:
 			msg="Cannot prepare DriveList or ConfigList"
 			logger.error(msg)
 			logger.debug(e)
-		
+
 	def onExit(self):
 		if messagebox.askquestion('Exiting', 'Are you sure ?', icon='warning') == "yes":
-			exit(0)
+			sys.exit(0)
 
 def readSmartdConfFile(fileName):
-	if not os.path.isfile(CONFIG.smartConfFile):
-		logger.critical("No suitable [" + _CONSTANT.SMARTD_CONF_FILENAME + "] file found, creating new file [" + CONFIG.smartConfFile + "].")
+	if not os.path.isfile(fileName):
+		msg="No suitable [" + _CONSTANT.SMARTD_CONF_FILENAME + "] file found, creating new file [" + CONFIG.smartConfFile + "]."
+		print(fileName)
+		logger.info(msg)
+		messagebox.showinfo('Information', msg)
 		return False
-	
+
 	try:
 		fileHandle = open(fileName, 'r')
 	except Exception as e:
-		msg="Cannot open config file [ " + fileName + "]."
+		msg="Cannot open config file [" + fileName + "]."
 		logger.error(msg)
 		logger.debug(e)
 		messagebox.showinfo("Error", msg)
 		return False
-	
+
 	try:
 		driveList = []
 		for line in fileHandle.readlines():
@@ -447,7 +467,6 @@ def readSmartdConfFile(fileName):
 					configList[i] = configList[i].strip()
 				driveList.append(configList[0])
 				del configList[0]
-		return (driveList, configList)
 	except Exception as e:
 		msg="Cannot read in config file [ " + fileName + "]."
 		logger.error(msg)
@@ -457,6 +476,7 @@ def readSmartdConfFile(fileName):
 
 	try:
 		fileHandle.close()
+		return (driveList, configList)
 	except Exception as e:
 		logger.error("Cannot close file [" + fileName + "].")
 		logger.debug(e)
@@ -470,7 +490,7 @@ def writeSmartdConfFile(fileName, driveList, configList):
 		logger.debug(e)
 		messagebox.showinfo("Error", msg)
 		return False
-	
+
 	try:
 		fileHandle.write("# This file was generated on " + str(datetime.now()) + " by " + _CONSTANT.APP_NAME + " " + _CONSTANT.APP_VERSION  + "\n# http://www.netpower.fr\n")
 	except Exception as e:
@@ -479,13 +499,13 @@ def writeSmartdConfFile(fileName, driveList, configList):
 		logger.debug(e)
 		messagebox.showinfo("Error", msg)
 		return False
-		
+
 	for drive in driveList:
 		line = drive
 		for arg in configList:
 			line += " " + arg
 		fileHandle.write(line + "\n")
-		
+
 	try:
 		fileHandle.close()
 	except Exception as e:
@@ -497,92 +517,104 @@ def serviceHandler(service, action):
 	"""Handle Windows / Unix services
 	Valid actions are start, stop, restart, status
 	"""
-	
+
 	msgAlreadyRunning="Service [" + service + "] already running."
 	msgNotRunning="Service [" + service + "] is not running."
-	msgStop="Stopping service [" + service + "]."
-	msgStart="Starting service [" + service + "]."
-	msgSuccess="Success"
-	msgFailure="Failed"
-	
+	msgAction="Action: " + action + " for service [" + service + "]."
+	msgSuccess="Success for action " + action
+	msgFailure="Failure for action " + action
+
 	if platform.system() == "Windows":
 		# Returns list. If second entry = 4, service is running
+		#TODO: handle other service states than 4
 		serviceStatus = win32serviceutil.QueryServiceStatus(service)
 		if serviceStatus[1] == 4:
 			isRunning = True
 		else:
 			isRunning = False
-		
+
 		if action == "start":
 			if isRunning:
 				logger.info(msgAlreadyRunning)
 				return True
 			else:
-				logger.info(msgStart)
+				logger.info(msgAction)
 				try:
 					win32serviceutil.StartService(service)
 					logger.info(msgSuccess)
 					return True
 				except Exception as e:
 					logger.error(msgFailure)
-					logger.debug(e)
+					# str conversion needed from pywintypes.error for logger
+					logger.debug(str(e).encode('utf-8'))
 					return False
-	
+
 		elif action == "stop":
-			#TODO: handle other service states than 4
 			if not isRunning:
 				logger.info(msgNotRunning)
-				return(0)
+				return True
 			else:
-				logger.info(msgStop)
+				logger.info(msgAction)
 				try:
 					win32serviceutil.StopService(service)
 					logger.info(msgSuccess)
 					return True
 				except Exception as e:
 					logger.error(msgFailure)
-					logger.debug(e)
+					logger.debug(str(e).encode('utf-8'))
 					return False
-		
-		elif action == "restart":
-			serviceHandler(service, stop)
-			serviceHandler(service, start)
-		
-		elif action == "status":
-			return isRunning
-	
-	else:
-		#Get service status
-		if action == "start":
-			logger.info(msgStart)
-			try:
-				os.system("service start " + service)
-				logger.info(msgSuccess)
-				return True
-			except Exception as e:
-				logger.info(msgFailure)
-				logger.debug(e)
-				return False
-		
-		elif action == "stop":
-			logger.info(msgStop)
-			try:
-				os.system("service stop " + service)
-				logger.info(msgSuccess)
-				return True
-			except Exception as e:
-				logger.error(msgFailure)
-				logger.debug(e)
-				return False
-		
+
 		elif action == "restart":
 			serviceHandler(service, stop)
 			serviceHandler(service, start)
 
 		elif action == "status":
-			#TODO
-			logger.debug("Not implemented yet !")
-		
+			return isRunning
+
+	else:
+		# Using lsb service X command on Unix variantsn, hopefully the most portable
+		serviceStatus = os.system("service " + service + " status > /dev/null 2>&1")
+		if serviceStatus == 0:
+			isRunning = True
+		else:
+			isRunning = False
+
+		if action == "start":
+			if isRunning:
+				logger.info(msgAlreadyRunning)
+				return True
+			else:
+				logger.info(msgAction)
+				try:
+					os.system("service " + service + " start > /dev/null 2>&1")
+					logger.info(msgSuccess)
+					return True
+				except Exception as e:
+					logger.info(msgFailure)
+					logger.debug(e)
+					return False
+
+		elif action == "stop":
+			if not isRunning:
+				logger.info(msgNotRunning)
+			else:
+				logger.info(msgAction)
+				try:
+					os.system("service " + service + " stop > /dev/null 2>&1")
+					logger.info(msgSuccess)
+					return True
+				except Exception as e:
+					logger.error(msgFailure)
+					logger.debug(e)
+					return False
+
+		elif action == "restart":
+			serviceHandler(service, stop)
+			serviceHandler(service, start)
+
+		elif action == "status":
+			return isRunning
+
 def usage():
 	print(_CONSTANT.APP_NAME + " v" + _CONSTANT.APP_VERSION + " " + _CONSTANT.APP_BUILD)
 	print(_CONSTANT.AUTHOR)
@@ -609,10 +641,10 @@ def usage():
 
 def main(argv):
 	global CONFIG
-	
+
 	if _CONSTANT.IS_STABLE == False:
 		logger.debug("Warning: This is an unstable developpment version.")
-	
+
 	try:
 		opts, args = getopt.getopt(argv, "h?c:")
 	except getopt.GetoptError:
@@ -634,11 +666,10 @@ def main(argv):
 		app = Application(root)
 		root.mainloop()
 	except Exception as e:
-		logger.critical("Cannot run program.")
+		logger.critical("Cannot instanciate main tk app.")
 		logger.debug(e)
-		exit(1)
+		sys.exit(1)
 
 if __name__ == '__main__':
 	main(sys.argv[1:])
-	
-	
+
