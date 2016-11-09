@@ -15,7 +15,8 @@ setup(
     data_files=[("", ["smartd-pyngui.ui"])],
     options= {
         "py2exe": { 
-            "includes" : ["pygubu.builder.tkstdwidgets",
+            "includes" : ["sys",
+						  "pygubu.builder.tkstdwidgets",
                           "pygubu.builder.ttkstdwidgets",
                           "pygubu.builder.widgets.dialog",
                           "pygubu.builder.widgets.editabletreeview",
@@ -25,13 +26,11 @@ setup(
                           "pygubu.builder.widgets.tkscrolledframe",
                           "pygubu.builder.widgets.pathchooserinput",],
             "excludes" : ["_ssl",
-                          "_socket",
                           "pyreadline",
                           "difflib",
                           "doctest",
                           "locale",
                           "optparse",
-                          "pickle",
                           "calendar",],
             "compressed" : True,
                           

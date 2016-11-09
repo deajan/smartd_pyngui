@@ -10,5 +10,5 @@ Make sure that the main .py file and .ui file are in the same path.
 
 python smartd-pyngui.py
 
-Windows executables are created with py2exe (using setup.py)
+Windows executables are created with py2exe (using setup-smartd-pyngui.py)
 

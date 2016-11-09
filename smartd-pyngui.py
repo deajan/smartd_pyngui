@@ -10,8 +10,8 @@ class Constants:
 	print(_CONST.NAME)
 	"""
 	APP_NAME="smartd-pyngui" # Stands for smart daemon python native gui
-	APP_VERSION="0.2"
-	APP_BUILD="2016110801"
+	APP_VERSION="0.1"
+	APP_BUILD="2016110901"
 	APP_DESCRIPTION="smartd v5.4+ daemon config utility"
 	CONTACT="ozy@netpower.fr - http://www.netpower.fr"
 	AUTHOR="Orsiris de Jong"
@@ -32,6 +32,14 @@ _CONSTANT = Constants
 
 #### LOGGING & DEBUG CODE ####################################################################################
 
+import os
+
+try:
+	os.environ["_DEBUG"]
+	_DEBUG = True
+except:
+	_DEBUG = False
+
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -46,13 +54,15 @@ logger.addHandler(logFileHandler)
 
 # Set stdout log
 logStdoutHandler = logging.StreamHandler()
-logStdoutHandler.setLevel(logging.DEBUG) #TODO: Replace with logging.ERROR in production env
+if _DEBUG == True:
+	logStdoutHandler.setLevel(logging.DEBUG)
+else:
+	logStdoutHandler.setLevel(logging.ERROR)
 logger.addHandler(logStdoutHandler)
 
 #### IMPORTS ################################################################################################
 
 import sys, getopt
-import os
 import platform					# Detect OS
 import re						# Regex handling
 import time						# sleep command
@@ -74,8 +84,11 @@ try:
 except:
 	logger.critical("Cannot find pygubu module. Try installing it with python -m pip install pygubu")
 	sys.exit(1)
+	
+# Manually resolve dependancies from pygubu with nuitka (Thanks to pygubu author Alejandro https://github.com/alejandroautalan)
+# As a side effect, show various messages in console on startup
+#import nuitkahelper
 
-# py2exe fails with win32serviceutil, nuitka does not
 if platform.system() == "Windows":
 	import win32serviceutil
 	import win32service
@@ -185,8 +198,8 @@ class Application:
 		callbacks = {
 			'enableAutoDetection': self.enableAutoDetection,
 			'disableAutoDetection': self.disableAutoDetection,
-			'enableInternalMailer': self.enableInternalMailer,
-			'disableInternalMailer': self.disableInternalMailer,
+			'toggleInternalMailer': self.toggleInternalMailer,
+			'toggleExternalScript': self.toggleExternalScript,
 			'onSubmit': self.onSubmit,
 			'onExit': self.onExit
 		}
@@ -281,29 +294,31 @@ class Application:
 			#if energySaving[1] == 'q':
 			#TODO: handle q parameter
 
-		#TODO: -m and -M are not exclusive
 		# Get mail options
 		if '-m' in '\t'.join(self.configList):
 			for i, item in enumerate(self.configList):
 				if '-m' in item:
 					index = i
 
-			if '<nomailer>' in self.configList[index]:
-				try:
-					if '-M exec' in self.configList[index + 1]:
-						self.builder.get_object('ExternalMailer', self.master).select()
-						self.builder.get_object('ExternalScript', self.master).delete("1.0", "end")
-						self.builder.get_object('ExternalScript', self.master).insert("end", self.configList[index + 1].lstrip('-M exec '))
-						self.builder.get_object('ExternalScript', self.master)['background'] = "#aaffaa"
-						self.builder.get_object('DestinationMails', self.master)['background'] = "#aaaaaa"
-				except:
-					pass
-			else:
-				self.builder.get_object('InternalMailer', self.master).select()
-				self.builder.get_object('DestinationMails', self.master).delete("1.0", "end")
-				self.builder.get_object('DestinationMails', self.master).insert("end", self.configList[index].lstrip('-m '))
-				self.builder.get_object('ExternalScript', self.master)['background'] = "#aaaaaa"
-				self.builder.get_object('DestinationMails', self.master)['background'] = "#aaffaa"
+			self.builder.get_object('InternalMailer', self.master).select()
+			self.builder.get_object('DestinationMails', self.master).delete("0", "end")
+			self.builder.get_object('DestinationMails', self.master).insert("end", self.configList[index].lstrip('-m '))
+			self.builder.get_object('DestinationMails', self.master)['background'] = "#aaffaa"
+		else:
+			self.builder.get_object('DestinationMails', self.master)['background'] = "#aaaaaa"
+
+
+		if '-M' in '\t'.join(self.configList):
+			for i, item in enumerate(self.configList):
+				if '-M' in item:
+					index = 1
+					
+			self.builder.get_object('ExternalMailer', self.master).select()
+			self.builder.get_object('ExternalScriptPath', self.master).delete("0", "end")
+			self.builder.get_object('ExternalScriptPath', self.master).insert("end", self.configList[index].lstrip('-M exec '))
+			self.builder.get_object('ExternalScriptPath', self.master)['background'] = "#aaffaa"
+		else:
+			self.builder.get_object('ExternalScriptPath', self.master)['background'] = "#aaaaaa"
 
 	def enableAutoDetection(self):
 		AutoDetect = self.builder.get_variable('AutoDetectDrives').get()
@@ -315,15 +330,17 @@ class Application:
 		if (AutoDetect == False):
 			self.builder.get_object('ManualDriveList', self.master)['background'] = "#aaffaa"
 
-	def enableInternalMailer(self):
+	def toggleInternalMailer(self):
 		if self.builder.get_variable('InternalMailer').get() == True:
-			self.builder.get_object('ExternalScript', self.master)['background'] = "#aaaaaa"
 			self.builder.get_object('DestinationMails', self.master)['background'] = "#aaffaa"
-
-	def disableInternalMailer(self):
-		if self.builder.get_variable('InternalMailer').get() == False:
-			self.builder.get_object('ExternalScript', self.master)['background'] = "#aaffaa"
+		else:
 			self.builder.get_object('DestinationMails', self.master)['background'] = "#aaaaaa"
+
+	def toggleExternalScript(self):
+		if self.builder.get_variable('ExternalScript').get() == True:
+			self.builder.get_object('ExternalScriptPath', self.master)['background'] = "#aaffaa"
+		else:
+			self.builder.get_object('ExternalScriptPath', self.master)['background'] = "#aaaaaa"
 
 	def prepareDriveList(self):
 		self.driveList=[]
@@ -332,14 +349,22 @@ class Application:
 			self.driveList.append('DEVICESCAN')
 		else:
 			self.driveList = self.builder.get_object('ManualDriveList', self.master).get("1.0", "end").strip().split()
-		#TODO: better bogus pattern detection
-		if "examples" in self.driveList:
-			#raise TypeInfo
-			#TODO doesn't trigger error
-			msg="Drive list contains bogus info"
-			logger.error(msg)
-			messagebox.showinfo("Error", msg)
-			return False
+		
+			#TODO: better bogus pattern detection
+			#TODO: needs to raise exception
+			if "example" in self.driveList or "exemple" in self.driveList:
+				msg="Drive list contains example !!!"
+				logger.error(msg)
+				messagebox.showinfo("Error", msg)
+				raise Exception
+			
+			for item in self.driveList:
+				if not item[0] == "/":
+					msg="Drive list doesn't start with slash [" + item + "]."
+					logger.error(msg)
+					messagebox.showinfo("Error", msg)
+					raise Exception
+					break
 
 	def prepareTestRegex(self):
 		"""Transforms checkboxes into long / short tests expression for smartd"""
@@ -397,16 +422,17 @@ class Application:
 		#TODO: -m root -M exec /some/path can work toghether
 		# Mailer options
 		if self.builder.get_variable('InternalMailer').get() == True:
-			mails = self.builder.get_object('DestinationMails', self.master).get("1.0", "end")
+			mails = self.builder.get_object('DestinationMails', self.master).get()
 			if (len(mails) > 0):
 				self.configList.append('-m ' + mails)
 			else:
 				messagebox.showinfo('Error', 'Bogus destination mail list')
 				return False
 		else:
-			script = self.builder.get_object('ExternalScript', self.master).get("1.0", "end")
+			script = self.builder.get_object('ExternalScript', self.master).get()
 			script = script.strip()
 			try:
+				# Add brackets to script
 				if script[0] != '"':
 					script = '"' + script
 				if script[-1:] != '"':
@@ -421,19 +447,42 @@ class Application:
 			self.prepareConfigList()
 
 			try:
-				#print(serviceHandler(_CONSTANT.SMARTD_SERVICE_NAME, "status"))
 				serviceHandler(_CONSTANT.SMARTD_SERVICE_NAME, "stop")
-				writeSmartdConfFile(CONFIG.smartConfFile, self.driveList, self.configList)
-				serviceHandler(_CONSTANT.SMARTD_SERVICE_NAME, "start")
 			except Exception as e:
-				msg="Guru meditation failure !"
+				msg="Cannot stop service [" + _CONSTANT.SMARTD_SERVICE_NAME + "]"
 				logger.error(msg)
 				logger.debug(e)
 				messagebox.showinfo("Error", msg)
+				return False
+			
+			# Trivial wait time after service has been stopped
+			time.sleep(2)
+				
+			try:
+				writeSmartdConfFile(CONFIG.smartConfFile, self.driveList, self.configList)
+			except Exception as e:
+				msg="Cannot write configuration file [" + CONFIG.smartConfFile + "]"
+				logger.error(msg)
+				logger.debug(e)
+				messagebox.showinfo("Error", msg)
+				return False
+				
+			try:
+				serviceHandler(_CONSTANT.SMARTD_SERVICE_NAME, "start")
+			except Exception as e:
+				msg="Cannot start service [" +_CONSTANT.SMARTD_SERVICE_NAME + "]"
+				logger.error(msg)
+				logger.debug(e)
+				messagebox.showinfo("Error", msg)
+				return False
+			
+			messagebox.showinfo("Information", "Successfully updated config and service.")
+				
 		except Exception as e:
-			msg="Cannot prepare DriveList or ConfigList"
+			msg="Configuration settnings are wrong. Please check values."
 			logger.error(msg)
 			logger.debug(e)
+			messagebox.showinfo('Error', msg)
 
 	def onExit(self):
 		if messagebox.askquestion('Exiting', 'Are you sure ?', icon='warning') == "yes":
@@ -442,7 +491,6 @@ class Application:
 def readSmartdConfFile(fileName):
 	if not os.path.isfile(fileName):
 		msg="No suitable [" + _CONSTANT.SMARTD_CONF_FILENAME + "] file found, creating new file [" + CONFIG.smartConfFile + "]."
-		print(fileName)
 		logger.info(msg)
 		messagebox.showinfo('Information', msg)
 		return False
@@ -516,13 +564,14 @@ def writeSmartdConfFile(fileName, driveList, configList):
 def serviceHandler(service, action):
 	"""Handle Windows / Unix services
 	Valid actions are start, stop, restart, status
+	Returns True if action succeeded or service is running, False if service does not run
 	"""
 
 	msgAlreadyRunning="Service [" + service + "] already running."
 	msgNotRunning="Service [" + service + "] is not running."
 	msgAction="Action: " + action + " for service [" + service + "]."
-	msgSuccess="Success for action " + action
-	msgFailure="Failure for action " + action
+	msgSuccess="Action " + action + " succeeded."
+	msgFailure="Action " + action + " failed."
 
 	if platform.system() == "Windows":
 		# Returns list. If second entry = 4, service is running
@@ -547,7 +596,7 @@ def serviceHandler(service, action):
 					logger.error(msgFailure)
 					# str conversion needed from pywintypes.error for logger
 					logger.debug(str(e).encode('utf-8'))
-					return False
+					raise Exception
 
 		elif action == "stop":
 			if not isRunning:
@@ -562,7 +611,7 @@ def serviceHandler(service, action):
 				except Exception as e:
 					logger.error(msgFailure)
 					logger.debug(str(e).encode('utf-8'))
-					return False
+					raise Exception
 
 		elif action == "restart":
 			serviceHandler(service, stop)
@@ -592,7 +641,7 @@ def serviceHandler(service, action):
 				except Exception as e:
 					logger.info(msgFailure)
 					logger.debug(e)
-					return False
+					raise Exception
 
 		elif action == "stop":
 			if not isRunning:
@@ -606,7 +655,7 @@ def serviceHandler(service, action):
 				except Exception as e:
 					logger.error(msgFailure)
 					logger.debug(e)
-					return False
+					raise Exception
 
 		elif action == "restart":
 			serviceHandler(service, stop)

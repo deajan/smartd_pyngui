@@ -28,49 +28,14 @@
             <property name="height">600</property>
             <property name="padding">10</property>
             <property name="scrolltype">both</property>
-            <property name="width">600</property>
+            <property name="width">590</property>
             <layout>
               <property name="column">0</property>
-              <property name="ipadx">203</property>
+              <property name="ipadx">169</property>
               <property name="ipady">200</property>
               <property name="propagate">True</property>
               <property name="row">0</property>
               <property name="sticky">nsew</property>
-              <columns>
-                <column id="0">
-                  <property name="minsize">586</property>
-                  <property name="weight">1</property>
-                </column>
-              </columns>
-              <rows>
-                <row id="0">
-                  <property name="weight">1</property>
-                </row>
-                <row id="1">
-                  <property name="weight">1</property>
-                </row>
-                <row id="2">
-                  <property name="weight">1</property>
-                </row>
-                <row id="3">
-                  <property name="weight">1</property>
-                </row>
-                <row id="4">
-                  <property name="weight">1</property>
-                </row>
-                <row id="5">
-                  <property name="weight">1</property>
-                </row>
-                <row id="6">
-                  <property name="weight">1</property>
-                </row>
-                <row id="7">
-                  <property name="weight">1</property>
-                </row>
-                <row id="8">
-                  <property name="weight">1</property>
-                </row>
-              </rows>
             </layout>
             <child>
               <object class="tk.LabelFrame" id="DriveDetection">
@@ -154,7 +119,7 @@
                 <child>
                   <object class="tk.Message" id="DriveDetectionMessage">
                     <property name="text" translatable="yes">Even under windows, smartd addresses drives with /dev/sdX where X is your drive number.
-Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and Y drive number. See smartd documentation.</property>
+Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and Y drive number. See smartd documentation for more.</property>
                     <property name="width">350</property>
                     <layout>
                       <property name="column">1</property>
@@ -620,10 +585,9 @@ Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and 
                   <property name="sticky">nsew</property>
                 </layout>
                 <child>
-                  <object class="tk.Radiobutton" id="InternalMailer">
-                    <property name="command">enableInternalMailer</property>
+                  <object class="tk.Checkbutton" id="InternalMailer">
+                    <property name="command">toggleInternalMailer</property>
                     <property name="text" translatable="yes">Use system mailer to send alerts to the following addresses (only for unix-like platforms)</property>
-                    <property name="value">True</property>
                     <property name="variable">boolean:InternalMailer</property>
                     <layout>
                       <property name="column">0</property>
@@ -635,11 +599,10 @@ Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and 
                   </object>
                 </child>
                 <child>
-                  <object class="tk.Radiobutton" id="ExternalMailer">
-                    <property name="command">disableInternalMailer</property>
+                  <object class="tk.Checkbutton" id="ExternalScript">
+                    <property name="command">toggleExternalScript</property>
                     <property name="text" translatable="yes">Use external error handling script</property>
-                    <property name="value">False</property>
-                    <property name="variable">boolean:InternalMailer</property>
+                    <property name="variable">boolean:ExternalScript</property>
                     <layout>
                       <property name="column">0</property>
                       <property name="columnspan">2</property>
@@ -650,10 +613,8 @@ Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and 
                   </object>
                 </child>
                 <child>
-                  <object class="tk.Text" id="ExternalScript">
-                    <property name="height">1</property>
-                    <property name="pady">0</property>
-                    <property name="width">68</property>
+                  <object class="tk.Entry" id="ExternalScriptPath">
+                    <property name="width">80</property>
                     <layout>
                       <property name="column">0</property>
                       <property name="padx">5</property>
@@ -664,9 +625,8 @@ Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and 
                   </object>
                 </child>
                 <child>
-                  <object class="tk.Text" id="DestinationMails">
-                    <property name="height">1</property>
-                    <property name="width">68</property>
+                  <object class="tk.Entry" id="DestinationMails">
+                    <property name="width">80</property>
                     <layout>
                       <property name="column">0</property>
                       <property name="padx">5</property>
