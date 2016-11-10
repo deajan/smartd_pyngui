@@ -11,12 +11,12 @@ class Constants:
 	"""
 	APP_NAME="smartd-pyngui" # Stands for smart daemon python native gui
 	APP_VERSION="0.1"
-	APP_BUILD="2016110901"
+	APP_BUILD="2016111002"
 	APP_DESCRIPTION="smartd v5.4+ daemon config utility"
 	CONTACT="ozy@netpower.fr - http://www.netpower.fr"
 	AUTHOR="Orsiris de Jong"
 
-	IS_STABLE=False
+	IS_STABLE=True
 
 	LOG_FILE=APP_NAME + ".log"
 
@@ -302,7 +302,7 @@ class Application:
 
 			self.builder.get_object('InternalMailer', self.master).select()
 			self.builder.get_object('DestinationMails', self.master).delete("0", "end")
-			self.builder.get_object('DestinationMails', self.master).insert("end", self.configList[index].lstrip('-m '))
+			self.builder.get_object('DestinationMails', self.master).insert("end", self.configList[index].replace('-m ', '', 1))
 			self.builder.get_object('DestinationMails', self.master)['background'] = "#aaffaa"
 		else:
 			self.builder.get_object('DestinationMails', self.master)['background'] = "#aaaaaa"
@@ -311,11 +311,11 @@ class Application:
 		if '-M' in '\t'.join(self.configList):
 			for i, item in enumerate(self.configList):
 				if '-M' in item:
-					index = 1
+					index = i
 					
-			self.builder.get_object('ExternalMailer', self.master).select()
+			self.builder.get_object('ExternalScript', self.master).select()
 			self.builder.get_object('ExternalScriptPath', self.master).delete("0", "end")
-			self.builder.get_object('ExternalScriptPath', self.master).insert("end", self.configList[index].lstrip('-M exec '))
+			self.builder.get_object('ExternalScriptPath', self.master).insert("end", self.configList[index].replace('-M exec ', '', 1))
 			self.builder.get_object('ExternalScriptPath', self.master)['background'] = "#aaffaa"
 		else:
 			self.builder.get_object('ExternalScriptPath', self.master)['background'] = "#aaaaaa"
@@ -541,18 +541,17 @@ def writeSmartdConfFile(fileName, driveList, configList):
 
 	try:
 		fileHandle.write("# This file was generated on " + str(datetime.now()) + " by " + _CONSTANT.APP_NAME + " " + _CONSTANT.APP_VERSION  + "\n# http://www.netpower.fr\n")
+		for drive in driveList:
+			line = drive
+			for arg in configList:
+				line += " " + arg
+			fileHandle.write(line + "\n")
 	except Exception as e:
 		msg="Cannot write config file [ " + fileName + "]."
 		logger.error(msg)
 		logger.debug(e)
 		messagebox.showinfo("Error", msg)
 		return False
-
-	for drive in driveList:
-		line = drive
-		for arg in configList:
-			line += " " + arg
-		fileHandle.write(line + "\n")
 
 	try:
 		fileHandle.close()
@@ -692,7 +691,6 @@ def main(argv):
 	global CONFIG
 
 	if _CONSTANT.IS_STABLE == False:
-		logger.debug("Warning: This is an unstable developpment version.")
 
 	try:
 		opts, args = getopt.getopt(argv, "h?c:")

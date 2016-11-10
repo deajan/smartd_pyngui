@@ -9,7 +9,9 @@ sys.argv.append("py2exe")
 
 setup(
     #options = {'py2exe': {'optimize': 2}},
-    windows = [{'script': "smartd-pyngui.py"}],
+    windows = [{'script': "smartd-pyngui.py",
+				'icon_resources': [(1, smartd-pyngui.ico")]}],
+				
     zipfile = "shared.lib",
     #console=["smartd-pyngui.py"],
     data_files=[("", ["smartd-pyngui.ui"])],
