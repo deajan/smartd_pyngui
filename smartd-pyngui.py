@@ -691,6 +691,7 @@ def main(argv):
 	global CONFIG
 
 	if _CONSTANT.IS_STABLE == False:
+		logger.warn("Warning: This is an unstable developpment version.")
 
 	try:
 		opts, args = getopt.getopt(argv, "h?c:")
