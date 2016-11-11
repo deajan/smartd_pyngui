@@ -4,19 +4,21 @@
 #### BASIC FUNCTIONS & DEFINITIONS #########################################################################
 
 class Constants:
-	"""Simple class to use constants
-	usage
+	"""Simple class to get python to have constants
+	
+	Usage:
 	_CONST = Constants
 	print(_CONST.NAME)
 	"""
+	
 	APP_NAME="smartd-pyngui" # Stands for smart daemon python native gui
 	APP_VERSION="0.1"
-	APP_BUILD="2016111002"
+	APP_BUILD="2016111101"
 	APP_DESCRIPTION="smartd v5.4+ daemon config utility"
 	CONTACT="ozy@netpower.fr - http://www.netpower.fr"
 	AUTHOR="Orsiris de Jong"
 
-	IS_STABLE=True
+	IS_STABLE=False
 
 	LOG_FILE=APP_NAME + ".log"
 
@@ -29,6 +31,34 @@ class Constants:
 		pass
 
 _CONSTANT = Constants
+
+#### DEV NOTES ###############################################################################################
+
+#TODO: get smartd version in order to enable / disable various features
+#TODO: improve smartd.conf syntax
+
+# -d TYPE = auto,ata,scsi,sat[,auto][,N],...
+# sat,auto is new... since version ?
+# maybe leave TYPE as free entry ?
+
+
+# powermode ,q support missing
+
+# -T TYPE = normal, permissive  - Maybe not used, old disks only
+# -o VALUE = on, off            - Maybe not used, not part of the ATA sepcs
+
+# -S VALUE = on, off  ???
+
+# improve -l support
+
+# -e NAME,VALUE is new since version ?
+
+# improve regex support
+
+# -M is dependant of -m
+# Multiple -M allowed
+# Add -M test parameter
+
 
 #### LOGGING & DEBUG CODE ####################################################################################
 
@@ -333,11 +363,14 @@ class Application:
 	def toggleInternalMailer(self):
 		if self.builder.get_variable('InternalMailer').get() == True:
 			self.builder.get_object('DestinationMails', self.master)['background'] = "#aaffaa"
+			if self.builder.get_variable('ExternalScript').get() == True:
+				self.builder.get_object('ExternalScriptPath', self.master)['background'] = "#aaffaa"
 		else:
 			self.builder.get_object('DestinationMails', self.master)['background'] = "#aaaaaa"
+			self.builder.get_object('ExternalScriptPath', self.master)['background'] = "#aaaaaa"
 
 	def toggleExternalScript(self):
-		if self.builder.get_variable('ExternalScript').get() == True:
+		if self.builder.get_variable('ExternalScript').get() == True and self.builder.get_variable('InternalMailer').get() == True:
 			self.builder.get_object('ExternalScriptPath', self.master)['background'] = "#aaffaa"
 		else:
 			self.builder.get_object('ExternalScriptPath', self.master)['background'] = "#aaaaaa"
@@ -419,7 +452,7 @@ class Application:
 		self.prepareTestRegex()
 		self.configList.append(self.testsRegex)
 
-		#TODO: -m root -M exec /some/path can work toghether
+		#TODO: -M can't exist without -m
 		# Mailer options
 		if self.builder.get_variable('InternalMailer').get() == True:
 			mails = self.builder.get_object('DestinationMails', self.master).get()
@@ -428,8 +461,8 @@ class Application:
 			else:
 				messagebox.showinfo('Error', 'Bogus destination mail list')
 				return False
-		else:
-			script = self.builder.get_object('ExternalScript', self.master).get()
+		if self.builder.get_variable('InternalMailer').get() == True:
+			script = self.builder.get_object('ExternalScriptPath', self.master).get()
 			script = script.strip()
 			try:
 				# Add brackets to script
@@ -437,7 +470,7 @@ class Application:
 					script = '"' + script
 				if script[-1:] != '"':
 					script += '"'
-				self.configList.append('-m <nomailer> -M exec ' + script)
+				self.configList.append('-M exec ' + script)
 			except:
 				pass
 
