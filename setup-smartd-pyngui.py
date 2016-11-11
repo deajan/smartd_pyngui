@@ -2,19 +2,33 @@
 
 # setup.py
 import sys
-from distutils.core import setup
-import py2exe
+try:
+	from distutils.core import setup
+except:
+	print("Missing distutils.core module")
+	sys.exit(1)
+
+try:
+	import py2exe
+except:
+	print("Missing py2exe module")
+	sys.exit(1)
 
 sys.argv.append("py2exe")
 
+APP_NAME='smartd-pyngui'
+
 setup(
-    #options = {'py2exe': {'optimize': 2}},
-    windows = [{'script': "smartd-pyngui.py",
-				'icon_resources': [(1, "smartd-pyngui.ico")]}],
+    name=APP_NAME,
+	version='0.2',
+	description='smartd python native GUI',
+	author='Orsiris de Jong',
+	#console=[APP_NAME + ".py"],
+    windows = [{'script': APP_NAME + ".py",
+				'icon_resources': [(1, APP_NAME + ".ico")]}],
 				
     zipfile = "shared.lib",
-    #console=["smartd-pyngui.py"],
-    data_files=[("", ["smartd-pyngui.ui"])],
+    data_files=[("", [APP_NAME + ".ui"])],
     options= {
         "py2exe": { 
             "includes" : ["sys",
@@ -33,8 +47,17 @@ setup(
                           "doctest",
                           "locale",
                           "optparse",
-                          "calendar",],
+                          "calendar",
+						  "doctest",
+						  "pdb",
+						  "unittest",
+						  "difflib",
+						  "inspect",
+						  ],
             "compressed" : True,
+			"optimize": 2,
                           
                     }},
         )
+
+#TODO: remove tcl\tcl8.5\{encoding,demos,tzdata}
