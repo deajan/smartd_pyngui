@@ -117,7 +117,7 @@ except:
 	
 # Manually resolve dependancies from pygubu with nuitka (Thanks to pygubu author Alejandro https://github.com/alejandroautalan)
 # As a side effect, show various messages in console on startup
-#import nuitkahelper
+import nuitkahelper
 
 if platform.system() == "Windows":
 	import win32serviceutil
@@ -718,7 +718,7 @@ def usage():
 	print("If no file is found, we'll create a new ./smartd.conf file")
 	print("[OPTIONS]")
 	print("--help, -h, -?		Will show this message")
-	sys.exit(1)
+	sys.exit(128)
 
 def main(argv):
 	global CONFIG
