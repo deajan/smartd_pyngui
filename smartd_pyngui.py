@@ -11,7 +11,7 @@ class Constants:
 	print(_CONST.NAME)
 	"""
 	
-	APP_NAME="smartd-pyngui" # Stands for smart daemon python native gui
+	APP_NAME="smartd_pyngui" # Stands for smart daemon python native gui
 	APP_VERSION="0.1"
 	APP_BUILD="2016111101"
 	APP_DESCRIPTION="smartd v5.4+ daemon config utility"
