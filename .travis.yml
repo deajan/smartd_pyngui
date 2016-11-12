@@ -8,5 +8,5 @@ python:
     - 3.5
     - nightly
     - pypy3
-install: "pip install -r pygubu"
+install: "pip install pygubu"
 script: smartd-pyngui.py
