@@ -9,4 +9,4 @@ python:
     - nightly
     - pypy3
 install: "pip install pygubu"
-script: smartd-pyngui.py
+script: run_tests.sh
