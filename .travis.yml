@@ -9,4 +9,5 @@ python:
     - nightly
     - pypy3
 install: "pip install pygubu"
-script: run_tests.sh
+script: ./run_tests.sh
+
