@@ -5,12 +5,12 @@
 
 class Constants:
 	"""Simple class to get python to have constants
-	
+
 	Usage:
 	_CONST = Constants
 	print(_CONST.NAME)
 	"""
-	
+
 	APP_NAME="smartd_pyngui" # Stands for smart daemon python native gui
 	APP_VERSION="0.1"
 	APP_BUILD="2016111101"
@@ -114,10 +114,13 @@ try:
 except:
 	logger.critical("Cannot find pygubu module. Try installing it with python -m pip install pygubu")
 	sys.exit(1)
-	
+
 # Manually resolve dependancies from pygubu with nuitka (Thanks to pygubu author Alejandro https://github.com/alejandroautalan)
 # As a side effect, show various messages in console on startup
-import nuitkahelper
+if __package__ == None:
+	import nuitkahelper
+else:
+	from . import nuitkahelper
 
 if platform.system() == "Windows":
 	import win32serviceutil
@@ -126,8 +129,6 @@ if platform.system() == "Windows":
 logger.info("Running on python " + platform.python_version() + " / " + str(platform.uname()))
 
 #### ACTUAL APPLICATION ######################################################################################
-
-CONFIG = 0 # Contains full config as Configuration class
 
 class Configuration:
 	smartConfFile = ""
