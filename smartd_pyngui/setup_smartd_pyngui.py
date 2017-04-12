@@ -16,7 +16,7 @@ except:
 
 sys.argv.append("py2exe")
 
-APP_NAME='smartd-pyngui'
+APP_NAME='smartd_pyngui'
 
 setup(
     name=APP_NAME,
@@ -25,7 +25,9 @@ setup(
 	author='Orsiris de Jong',
 	#console=[APP_NAME + ".py"],
     windows = [{'script': APP_NAME + ".py",
-				'icon_resources': [(1, APP_NAME + ".ico")]}],
+				'icon_resources': [(1, APP_NAME + ".ico")],
+				'uac_info': "requireAdministrator",
+				}],
 				
     zipfile = "shared.lib",
     data_files=[("", [APP_NAME + ".ui"])],
