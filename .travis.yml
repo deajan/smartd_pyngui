@@ -8,6 +8,6 @@ python:
     - 3.5
     - nightly
 #    - pypy3
-install: "pip install pygubu pytest"
+install: "pip install pygubu pytest nuitka"
 script: tests/run_tests.sh
 
