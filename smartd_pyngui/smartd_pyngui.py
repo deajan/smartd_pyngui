@@ -5,12 +5,12 @@
 
 class Constants:
 	"""Simple class to get python to have constants
-
+	
 	Usage:
 	_CONST = Constants
 	print(_CONST.NAME)
 	"""
-
+	
 	APP_NAME="smartd_pyngui" # Stands for smart daemon python native gui
 	APP_VERSION="0.1"
 	APP_BUILD="2016111101"
@@ -18,7 +18,7 @@ class Constants:
 	CONTACT="ozy@netpower.fr - http://www.netpower.fr"
 	AUTHOR="Orsiris de Jong"
 
-	IS_STABLE=False
+	IS_STABLE=True
 
 	LOG_FILE=APP_NAME + ".log"
 
@@ -74,7 +74,9 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+
+# Disable forced logging after dev
+#logger.setLevel(logging.DEBUG)
 
 # Set file log
 logFileHandler = RotatingFileHandler(_CONSTANT.LOG_FILE, mode='a', encoding='utf-8', maxBytes=1000000, backupCount=1)
@@ -114,13 +116,10 @@ try:
 except:
 	logger.critical("Cannot find pygubu module. Try installing it with python -m pip install pygubu")
 	sys.exit(1)
-
+	
 # Manually resolve dependancies from pygubu with nuitka (Thanks to pygubu author Alejandro https://github.com/alejandroautalan)
 # As a side effect, show various messages in console on startup
-if __package__ == None:
-	import nuitkahelper
-else:
-	from . import nuitkahelper
+import nuitkahelper
 
 if platform.system() == "Windows":
 	import win32serviceutil
@@ -129,6 +128,8 @@ if platform.system() == "Windows":
 logger.info("Running on python " + platform.python_version() + " / " + str(platform.uname()))
 
 #### ACTUAL APPLICATION ######################################################################################
+
+CONFIG = 0 # Contains full config as Configuration class
 
 class Configuration:
 	smartConfFile = ""
