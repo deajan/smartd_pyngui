@@ -119,7 +119,7 @@ except:
 	
 # Manually resolve dependancies from pygubu with nuitka (Thanks to pygubu author Alejandro https://github.com/alejandroautalan)
 # As a side effect, show various messages in console on startup
-import nuitkahelper
+# import nuitkahelper
 
 if platform.system() == "Windows":
 	import win32serviceutil
