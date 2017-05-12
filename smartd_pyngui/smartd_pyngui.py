@@ -12,8 +12,8 @@ class Constants:
 	"""
 	
 	APP_NAME="smartd_pyngui" # Stands for smart daemon python native gui
-	APP_VERSION="0.1"
-	APP_BUILD="2016111101"
+	APP_VERSION="0.2"
+	APP_BUILD="2017050301"
 	APP_DESCRIPTION="smartd v5.4+ daemon config utility"
 	CONTACT="ozy@netpower.fr - http://www.netpower.fr"
 	AUTHOR="Orsiris de Jong"
@@ -119,7 +119,7 @@ except:
 	
 # Manually resolve dependancies from pygubu with nuitka (Thanks to pygubu author Alejandro https://github.com/alejandroautalan)
 # As a side effect, show various messages in console on startup
-# import nuitkahelper
+import nuitkahelper
 
 if platform.system() == "Windows":
 	import win32serviceutil
@@ -232,7 +232,8 @@ class Application:
 			'disableAutoDetection': self.disableAutoDetection,
 			'toggleInternalMailer': self.toggleInternalMailer,
 			'toggleExternalScript': self.toggleExternalScript,
-			'onSubmit': self.onSubmit,
+			'onSaveChanges': self.onSaveChanges,
+			'onServiceReload': self.onServiceReload,
 			'onExit': self.onExit
 		}
 		self.builder.connect_callbacks(callbacks)
@@ -476,22 +477,11 @@ class Application:
 			except:
 				pass
 
-	def onSubmit(self):
+	# Remove service stuff
+	def onSaveChanges(self):
 		try:
 			self.prepareDriveList()
 			self.prepareConfigList()
-
-			try:
-				serviceHandler(_CONSTANT.SMARTD_SERVICE_NAME, "stop")
-			except Exception as e:
-				msg="Cannot stop service [" + _CONSTANT.SMARTD_SERVICE_NAME + "]"
-				logger.error(msg)
-				logger.debug(e)
-				messagebox.showinfo("Error", msg)
-				return False
-			
-			# Trivial wait time after service has been stopped
-			time.sleep(2)
 				
 			try:
 				writeSmartdConfFile(CONFIG.smartConfFile, self.driveList, self.configList)
@@ -501,23 +491,38 @@ class Application:
 				logger.debug(e)
 				messagebox.showinfo("Error", msg)
 				return False
-				
-			try:
-				serviceHandler(_CONSTANT.SMARTD_SERVICE_NAME, "start")
-			except Exception as e:
-				msg="Cannot start service [" +_CONSTANT.SMARTD_SERVICE_NAME + "]"
-				logger.error(msg)
-				logger.debug(e)
-				messagebox.showinfo("Error", msg)
-				return False
 			
-			messagebox.showinfo("Information", "Successfully updated config and service.")
+			messagebox.showinfo("Information", "Successfully saved configuration.")
 				
 		except Exception as e:
 			msg="Configuration settnings are wrong. Please check values."
 			logger.error(msg)
 			logger.debug(e)
 			messagebox.showinfo('Error', msg)
+
+	def onServiceReload(self):
+		try:
+			serviceHandler(_CONSTANT.SMARTD_SERVICE_NAME, "stop")
+		except Exception as e:
+			msg="Cannot stop service [" + _CONSTANT.SMARTD_SERVICE_NAME + "]"
+			logger.error(msg)
+			logger.debug(e)
+			messagebox.showinfo("Error", msg)
+			return False
+			
+			# Trivial wait time after service has been stopped
+			time.sleep(2)
+
+		try:
+			serviceHandler(_CONSTANT.SMARTD_SERVICE_NAME, "start")
+		except Exception as e:
+			msg="Cannot start service [" +_CONSTANT.SMARTD_SERVICE_NAME + "]"
+			logger.error(msg)
+			logger.debug(e)
+			messagebox.showinfo("Error", msg)
+			return False
+			
+		messagebox.showinfo("Information", "Successfully reloaded smartd service.")		
 
 	def onExit(self):
 		if messagebox.askquestion('Exiting', 'Are you sure ?', icon='warning') == "yes":

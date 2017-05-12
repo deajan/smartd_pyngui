@@ -649,13 +649,14 @@ Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and 
                 </layout>
                 <child>
                   <object class="ttk.Button" id="Button_3">
-                    <property name="command">onSubmit</property>
-                    <property name="text" translatable="yes">Save changes &amp; relaunch smartd service</property>
+                    <property name="command">onSaveChanges</property>
+                    <property name="text" translatable="yes">Save changes</property>
                     <layout>
                       <property name="column">0</property>
                       <property name="padx">10</property>
                       <property name="propagate">True</property>
                       <property name="row">0</property>
+                      <property name="sticky">w</property>
                     </layout>
                   </object>
                 </child>
@@ -664,8 +665,20 @@ Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and 
                     <property name="command">onExit</property>
                     <property name="text" translatable="yes">Exit</property>
                     <layout>
-                      <property name="column">1</property>
+                      <property name="column">2</property>
                       <property name="padx">10</property>
+                      <property name="propagate">True</property>
+                      <property name="row">0</property>
+                      <property name="sticky">e</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="ttk.Button" id="Button_2">
+                    <property name="command">onServiceReload</property>
+                    <property name="text" translatable="yes">Reload smartd service</property>
+                    <layout>
+                      <property name="column">1</property>
                       <property name="propagate">True</property>
                       <property name="row">0</property>
                     </layout>
@@ -686,7 +699,7 @@ Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and 
             </child>
             <child>
               <object class="tk.Label" id="Author">
-                <property name="text" translatable="yes">Written in 2012-2016 by Orsiris de Jong - www.netpower.fr</property>
+                <property name="text" translatable="yes">Written in 2012-2017 by Orsiris de Jong - www.netpower.fr</property>
                 <layout>
                   <property name="column">0</property>
                   <property name="propagate">True</property>
