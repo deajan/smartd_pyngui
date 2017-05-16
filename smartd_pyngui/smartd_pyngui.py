@@ -99,6 +99,7 @@ import platform					# Detect OS
 import re						# Regex handling
 import time						# sleep command
 import codecs					# unicode encoding
+import traceback				# trace module
 
 from datetime import datetime
 
@@ -119,7 +120,7 @@ except:
 	
 # Manually resolve dependancies from pygubu with nuitka (Thanks to pygubu author Alejandro https://github.com/alejandroautalan)
 # As a side effect, show various messages in console on startup
-import nuitkahelper
+#import nuitkahelper
 
 if platform.system() == "Windows":
 	import win32serviceutil
@@ -290,7 +291,7 @@ class Application:
 					self.builder.get_object('LongTestHour', self.master).set(longTest.group(4))
 
 			shortTest = re.search('S/(.+?)/(.+?)/(.+?)/([0-9]*)', self.configList[index])
-			if longTest:
+			if shortTest:
 				#print(shortTest.group(1))
 				#print(shortTest.group(2))
 				if shortTest.group(3):
@@ -756,6 +757,7 @@ def main(argv):
 	except Exception as e:
 		logger.critical("Cannot instanciate main tk app.")
 		logger.debug(e)
+		traceback.print_exc()
 		sys.exit(1)
 
 if __name__ == '__main__':
