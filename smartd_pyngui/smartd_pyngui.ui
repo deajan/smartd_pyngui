@@ -521,7 +521,7 @@ Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and 
                 </layout>
                 <child>
                   <object class="ttk.Label" id="Label_5">
-                    <property name="text" translatable="yes">Do not execute self-test when disk is in mode</property>
+                    <property name="text" translatable="yes">Do not execute smartd tests when disk is in mode</property>
                     <layout>
                       <property name="column">0</property>
                       <property name="propagate">True</property>
