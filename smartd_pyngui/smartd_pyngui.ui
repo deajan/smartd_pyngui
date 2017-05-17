@@ -25,16 +25,6 @@
           <property name="propagate">True</property>
           <property name="row">3</property>
           <property name="sticky">nsew</property>
-          <columns>
-            <column id="0">
-              <property name="pad">0</property>
-              <property name="weight">0</property>
-            </column>
-            <column id="1">
-              <property name="pad">0</property>
-              <property name="weight">0</property>
-            </column>
-          </columns>
           <rows>
             <row id="0">
               <property name="minsize">0</property>
@@ -46,6 +36,16 @@
               <property name="weight">0</property>
             </row>
           </rows>
+          <columns>
+            <column id="0">
+              <property name="pad">0</property>
+              <property name="weight">0</property>
+            </column>
+            <column id="1">
+              <property name="pad">0</property>
+              <property name="weight">0</property>
+            </column>
+          </columns>
         </layout>
         <child>
           <object class="tk.Radiobutton" id="AutoDetectDrives">
@@ -114,7 +114,7 @@ Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and 
         <property name="padx">10</property>
         <property name="pady">10</property>
         <property name="takefocus">true</property>
-        <property name="text" translatable="yes">Long self-tests</property>
+        <property name="text" translatable="yes">Scheduled long self-tests</property>
         <property name="width">75</property>
         <layout>
           <property name="column">0</property>
@@ -247,7 +247,7 @@ Intel raid drives are adressed as /dev/csmiX,Y where X is controller number and 
         <property name="padx">10</property>
         <property name="pady">10</property>
         <property name="takefocus">true</property>
-        <property name="text" translatable="yes">Short self-tests</property>
+        <property name="text" translatable="yes">Scheduled short self-tests</property>
         <property name="width">500</property>
         <layout>
           <property name="column">0</property>
