@@ -12,8 +12,8 @@ class Constants:
 	"""
 	
 	APP_NAME="smartd_pyngui" # Stands for smart daemon python native gui
-	APP_VERSION="0.2"
-	APP_BUILD="2017050301"
+	APP_VERSION="0.3-dev"
+	APP_BUILD="2017051601"
 	APP_DESCRIPTION="smartd v5.4+ daemon config utility"
 	CONTACT="ozy@netpower.fr - http://www.netpower.fr"
 	AUTHOR="Orsiris de Jong"
@@ -215,6 +215,12 @@ class Application:
 		self.master = master
 		self.builder = builder = pygubu.Builder()
 
+		#self.mainwindow = builder.get_object('MainFrame', master)
+
+		# + Configure layout of the master. Set master resizable:
+		master.rowconfigure(0, weight=1, minsize=600)
+		master.columnconfigure(0, weight=1, minsize=545)
+
 		# Load GUI xml description file
 		filePath = os.path.join(CONFIG.appRoot, _CONSTANT.APP_NAME + ".ui")
 		try:
@@ -277,8 +283,9 @@ class Application:
 			if longTest:
 				#print(longTest.group(1))
 				#print(longTest.group(2))
+				#print(longTest.group(3))
 				if longTest.group(3):
-					dayList = longTest.group(3).split(',')
+					dayList = list(longTest.group(3))
 					#Handle special case where . means all
 					if dayList[0] == '.':
 						for day in range(0,7):
@@ -286,7 +293,7 @@ class Application:
 					else:
 						for day in dayList:
 							if day.strip("[]").isdigit():
-								self.builder.get_object('LongTest' + self.days[int(day.strip("[]"))], self.master).select()
+								self.builder.get_object('LongTest' + self.days[int(day.strip("[]"))-1], self.master).select()
 				if longTest.group(4):
 					self.builder.get_object('LongTestHour', self.master).set(longTest.group(4))
 
@@ -295,7 +302,7 @@ class Application:
 				#print(shortTest.group(1))
 				#print(shortTest.group(2))
 				if shortTest.group(3):
-					dayList = shortTest.group(3).split(',')
+					dayList = list(shortTest.group(3))
 					#Handle special case where . means all
 					if dayList[0] == '.':
 						for day in range(0,7):
@@ -303,7 +310,7 @@ class Application:
 					else:
 						for day in dayList:
 							if day.strip("[]").isdigit():
-								self.builder.get_object('ShortTest' + self.days[int(day.strip("[]]"))], self.master).select()
+								self.builder.get_object('ShortTest' + self.days[int(day.strip("[]]"))-1], self.master).select()
 				if shortTest.group(4):
 					self.builder.get_object('ShortTestHour', self.master).set(shortTest.group(4))
 
@@ -408,17 +415,22 @@ class Application:
 		#Still not a good implementation after the Inno Setup ugly implementation
 
 		for testType in self.testTypes:
-			regex = ""
+			regex = "["
 			present = False
 			for day in self.days:
 				if self.builder.get_variable(testType + 'Test' + day).get():
-					regex += str(self.days.index(day)) + ","
+					regex += str(self.days.index(day) + 1)
 					present = True
-			regex = regex.rstrip(',')
+			regex += "]"
+			#regex = regex.rstrip(',')
+			
+			LongTestHour = ("%02d" % self.builder.get_variable('LongTestHour').get())
+			ShortTestHour = ("%02d" % self.builder.get_variable('ShortTestHour').get())
+			
 			if testType == self.testTypes[0] and present == True:
-				longRegex = "L/../../" + regex + "/" + str(self.builder.get_variable('LongTestHour').get())
+				longRegex = "L/../../" + regex + "/" + str(LongTestHour)
 			elif testType == self.testTypes[1] and present == True:
-				shortRegex = "S/../../" + regex + "/" + str(self.builder.get_variable('ShortTestHour').get())
+				shortRegex = "S/../../" + regex + "/" + str(ShortTestHour)
 
 		if ('longRegex' in locals()) and ('shortRegex' in locals()):
 			self.testsRegex = "-s (" + longRegex + "|" + shortRegex + ")"
@@ -469,11 +481,19 @@ class Application:
 			script = self.builder.get_object('ExternalScriptPath', self.master).get()
 			script = script.strip()
 			try:
-				# Add brackets to script
-				if script[0] != '"':
-					script = '"' + script
-				if script[-1:] != '"':
-					script += '"'
+				# Make sure brackets around the script are singlequotes
+				if script[0] != "'":
+					if script[0] == '"':
+						script = re.sub('^"', "'", script)
+					else:
+						script = "'" + script
+		
+				if script[-1:] != "'":
+					if script[-1:] == '"':
+						script = re.sub('"$', "'", script)
+					else:
+						script += "'"
+				
 				self.configList.append('-M exec ' + script)
 			except:
 				pass
