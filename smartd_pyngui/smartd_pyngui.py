@@ -12,8 +12,8 @@ class Constants:
 	"""
 	
 	APP_NAME="smartd_pyngui" # Stands for smart daemon python native gui
-	APP_VERSION="0.3-dev"
-	APP_BUILD="2017051601"
+	APP_VERSION="0.3"
+	APP_BUILD="2018041001"
 	APP_DESCRIPTION="smartd v5.4+ daemon config utility"
 	CONTACT="ozy@netpower.fr - http://www.netpower.fr"
 	AUTHOR="Orsiris de Jong"
@@ -53,13 +53,6 @@ _CONSTANT = Constants
 
 # -e NAME,VALUE is new since version ?
 
-# improve regex support
-
-# -M is dependant of -m
-# Multiple -M allowed
-# Add -M test parameter
-
-
 #### LOGGING & DEBUG CODE ####################################################################################
 
 import os
@@ -69,17 +62,21 @@ try:
 	_DEBUG = True
 except:
 	_DEBUG = False
-
+	
+import tempfile
 import logging
 from logging.handlers import RotatingFileHandler
 
 logger = logging.getLogger()
-
-# Disable forced logging after dev
+# Disable forced debug logging after developpment
 #logger.setLevel(logging.DEBUG)
 
-# Set file log
-logFileHandler = RotatingFileHandler(_CONSTANT.LOG_FILE, mode='a', encoding='utf-8', maxBytes=1000000, backupCount=1)
+# Set file log (try temp log file if not allowed to write to current dir)
+try:
+	logFileHandler = RotatingFileHandler(_CONSTANT.LOG_FILE, mode='a', encoding='utf-8', maxBytes=1000000, backupCount=1)
+except:
+	logFileHandler = RotatingFileHandler(tempfile.gettempdir() + os.sep + _CONSTANT.LOG_FILE, mode='a', encoding='utf-8', maxBytes=1000000, backupCount=1)
+
 logFileHandler.setLevel(logging.DEBUG)
 logFileHandler.setFormatter(logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s'))
 logger.addHandler(logFileHandler)
@@ -118,13 +115,14 @@ except:
 	logger.critical("Cannot find pygubu module. Try installing it with python -m pip install pygubu")
 	sys.exit(1)
 	
-# Manually resolve dependancies from pygubu with nuitka (Thanks to pygubu author Alejandro https://github.com/alejandroautalan)
-# As a side effect, show various messages in console on startup
-#import nuitkahelper
+# Manually resolve dependancies from pygubu with nuitka / other freezers like cx_freeze (Thanks to pygubu author Alejandro https://github.com/alejandroautalan)
+# As a side effect, show various messages in console on startup when using nuitka
+import nuitkahelper
 
 if platform.system() == "Windows":
 	import win32serviceutil
 	import win32service
+	import ctypes			# In order to perform UAC call
 
 logger.info("Running on python " + platform.python_version() + " / " + str(platform.uname()))
 
@@ -181,6 +179,7 @@ class Configuration:
 				elif os.path.isfile("/etc" + os.sep + _CONSTANT.SMARTD_CONF_FILENAME):
 					self.smartConfFile = "/etc" + os.sep + _CONSTANT.SMARTD_CONF_FILENAME
 
+
 		if len(self.smartConfFile) == 0:
 			self.smartConfFile = self.appRoot + os.sep + _CONSTANT.SMARTD_CONF_FILENAME
 		else:
@@ -197,18 +196,24 @@ class Application:
 
 	# Set defaults
 	driveList = ['DEVICESCAN']
-	configList = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7', '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
+	configList = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q', '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
 	testsRegex=""
 
 	# Gui parameter mapping
 	parameterMap = [('-H', 'CheckSmartHealth'), 
-					('-C 197+', 'ReportNonZeroCurrentPendingSectors'),
+					('-C 197', 'ReportNonZeroCurrentPendingSectors'),
+					('-C 197+', 'CurrentPendingSectorsOnlyReportIncrease'),
 					('-l error', 'ReportATAErrorIncrease'),
-					('-U 198+', 'ReportOfflineUncorrectableSectorsIncrease'),
+					('-U 198', 'ReportNonZeroOfflineUncorrectableSectors'),
+					('-U 198+', 'UncorrectableSectorsOnlyReportIncrease'),
 					('-l selftest', 'ReportSelftestErrorIncrease'),
+					('-l offlinets', 'ReportOfflinetestsErrorIncrease'),
 					('-t', 'TrackUsageAndPrefailAttributesChanges'),
 					('-f', 'CheckUsageAttributesFailures'),
-					('-I 194', 'IgnoreTemperatureChanges')
+					('-I 194', 'IgnoreTemperatureChanges'),
+					('-W', 'ReportTempChanges'),
+					('-r 5!', 'ReportReallocatedSectorRAW'),
+					('-R 5!', 'ReportReallocatedSectorIncreaseRAW')
 	]
 
 	def __init__(self, master):
@@ -216,10 +221,10 @@ class Application:
 		self.builder = builder = pygubu.Builder()
 
 		#self.mainwindow = builder.get_object('MainFrame', master)
-
+		#self.mainwindow = builder.get_object('MainFrame', master)
 		# + Configure layout of the master. Set master resizable:
-		master.rowconfigure(0, weight=1, minsize=600)
-		master.columnconfigure(0, weight=1, minsize=545)
+		#master.rowconfigure(0, weight=1, minsize=600)
+		#master.columnconfigure(0, weight=1, minsize=670)
 
 		# Load GUI xml description file
 		filePath = os.path.join(CONFIG.appRoot, _CONSTANT.APP_NAME + ".ui")
@@ -231,6 +236,8 @@ class Application:
 			sys.exit(1)
 
 		self.mainwindow = builder.get_object('MainFrame', master)
+		master.rowconfigure(0, weight=1, minsize=800)
+		master.columnconfigure(0, weight=1, minsize=670)
 
 		# Bind GUI actions to functions
 		self.builder.connect_callbacks(self)
@@ -318,6 +325,25 @@ class Application:
 		for map in self.parameterMap:
 			if map[0] in self.configList:
 				self.builder.get_object(map[1], self.master).select()
+			
+			# Handle specific dependancy cases
+			if map[0] == '-C 197+':
+				self.builder.get_object('ReportNonZeroCurrentPendingSectors', self.master).select()
+			if map[0] == '-U 198+':
+				self.builder.get_object('ReportNonZeroOfflineUncorrectableSectors', self.master).select()
+				
+		# Handle temperature specific cases
+		for i, item in enumerate(self.configList):
+			if re.match(r'^-W [0-9]{1,2},[0-9]{1,2},[0-9]{1,2}$', item):
+				self.builder.get_object('ReportTempChanges', self.master).select()
+				temperatures = item.split(' ')[1]
+				temperatures = temperatures.split(',')
+				self.builder.get_object('DiffTemp', self.master).delete("0", "end")
+				self.builder.get_object('DiffTemp', self.master).insert("end", temperatures[0])
+				self.builder.get_object('InfoTemp', self.master).delete("0", "end")
+				self.builder.get_object('InfoTemp', self.master).insert("end", temperatures[1])
+				self.builder.get_object('CritTemp', self.master).delete("0", "end")
+				self.builder.get_object('CritTemp', self.master).insert("end", temperatures[2])
 
 		# Energy saving GUI setup
 		if '-n' in '\t'.join(self.configList):
@@ -443,9 +469,35 @@ class Application:
 		"""Prepare a list of arguments for smartd.conf file"""
 		self.configList=[]
 
-		for map in self.parameterMap:
-			if self.builder.get_variable(map[1]).get():
-				self.configList.append(map[0])
+		try:
+			for map in self.parameterMap:
+				if self.builder.get_variable(map[1]).get():
+					# Special cases where some parameters depend on others
+					if (map[1] == 'CurrentPendingSectorsOnlyReportIncrease'):
+						if '-C 197' in self.configList:
+							for (i, item) in enumerate(self.configList):
+								if item == '-C 197':
+									self.configList[i] = '-C 197+'
+					elif (map[1] == 'UncorrectableSectorsOnlyReportIncrease'):
+						if '-U 198' in self.configList:
+							for (i, item) in enumerate(self.configList):
+								if item == '-U 198':
+									self.configList[i] = '-U 198+'
+					elif (map[1] == 'ReportTempChanges'):
+						temperatureLine = '-W '
+						temperatureLine += str(self.builder.get_variable('DiffTemp').get())
+						temperatureLine += ',' + str(self.builder.get_variable('InfoTemp').get())
+						temperatureLine += ',' + str(self.builder.get_variable('CritTemp').get())
+						self.configList.append(temperatureLine)
+					else:				
+						self.configList.append(map[0])
+		except Exception as e:
+			msg="Bogus configuration in [" + map[1] + "]."
+			logger.error(msg)
+			logger.debug(e)
+			logger.debug(configList)
+			messagebox.showinfo('Error', msg)
+			
 
 		energyMode = self.builder.get_variable('DiskModeSkipTests').get()
 		if energyMode in self.energyModes:
@@ -476,7 +528,7 @@ class Application:
 				self.configList.append('-m ' + mails)
 			else:
 				messagebox.showinfo('Error', 'Bogus destination mail list')
-				return False
+				raise False
 		if self.builder.get_variable('InternalMailer').get() == True:
 			script = self.builder.get_object('ExternalScriptPath', self.master).get()
 			script = script.strip()
@@ -497,6 +549,8 @@ class Application:
 				self.configList.append('-M exec ' + script)
 			except:
 				pass
+				
+		logger.debug(self.configList)
 
 	# Remove service stuff
 	def onSaveChanges(self):
@@ -511,12 +565,12 @@ class Application:
 				logger.error(msg)
 				logger.debug(e)
 				messagebox.showinfo("Error", msg)
-				return False
+				raise False
 			
 			messagebox.showinfo("Information", "Successfully saved configuration.")
 				
 		except Exception as e:
-			msg="Configuration settnings are wrong. Please check values."
+			msg="Configuration settings are wrong. Please check values."
 			logger.error(msg)
 			logger.debug(e)
 			messagebox.showinfo('Error', msg)
@@ -529,7 +583,7 @@ class Application:
 			logger.error(msg)
 			logger.debug(e)
 			messagebox.showinfo("Error", msg)
-			return False
+			raise False
 			
 			# Trivial wait time after service has been stopped
 			time.sleep(2)
@@ -541,7 +595,7 @@ class Application:
 			logger.error(msg)
 			logger.debug(e)
 			messagebox.showinfo("Error", msg)
-			return False
+			raise False
 			
 		messagebox.showinfo("Information", "Successfully reloaded smartd service.")		
 
@@ -554,16 +608,16 @@ def readSmartdConfFile(fileName):
 		msg="No suitable [" + _CONSTANT.SMARTD_CONF_FILENAME + "] file found, creating new file [" + CONFIG.smartConfFile + "]."
 		logger.info(msg)
 		messagebox.showinfo('Information', msg)
-		return False
+		raise False
 
 	try:
 		fileHandle = open(fileName, 'r')
 	except Exception as e:
-		msg="Cannot open config file [" + fileName + "]."
+		msg="Cannot open config file [" + fileName + "] for reading."
 		logger.error(msg)
 		logger.debug(e)
 		messagebox.showinfo("Error", msg)
-		return False
+		raise False
 
 	try:
 		driveList = []
@@ -581,24 +635,24 @@ def readSmartdConfFile(fileName):
 		logger.error(msg)
 		logger.debug(e)
 		messagebox.showinfo("Error", msg)
-		return False
+		raise False
 
 	try:
 		fileHandle.close()
 		return (driveList, configList)
 	except Exception as e:
-		logger.error("Cannot close file [" + fileName + "].")
+		logger.error("Cannot close file [" + fileName + "] after reading.")
 		logger.debug(e)
 
 def writeSmartdConfFile(fileName, driveList, configList):
 	try:
 		fileHandle = open(fileName, 'w')
 	except Exception as e:
-		msg="Cannot open config file [ " + fileName + "]."
+		msg="Cannot open config file [ " + fileName + "] for writing."
 		logger.error(msg)
 		logger.debug(e)
 		messagebox.showinfo("Error", msg)
-		return False
+		raise False
 
 	try:
 		fileHandle.write("# This file was generated on " + str(datetime.now()) + " by " + _CONSTANT.APP_NAME + " " + _CONSTANT.APP_VERSION  + "\n# http://www.netpower.fr\n")
@@ -612,12 +666,12 @@ def writeSmartdConfFile(fileName, driveList, configList):
 		logger.error(msg)
 		logger.debug(e)
 		messagebox.showinfo("Error", msg)
-		return False
+		raise False
 
 	try:
 		fileHandle.close()
 	except Exception as e:
-		logger.error("Cannot close file [" + fileName + "].")
+		logger.error("Cannot close file [" + fileName + "] after writing.")
 		logger.debug(e)
 
 
@@ -758,6 +812,7 @@ def main(argv):
 		opts, args = getopt.getopt(argv, "h?c:")
 	except getopt.GetoptError:
 		usage()
+
 	for opt, arg in opts:
 		if opt == '-h' or opt == "--help" or opt == "-?":
 			usage()
@@ -780,6 +835,35 @@ def main(argv):
 		traceback.print_exc()
 		sys.exit(1)
 
+# Modification of https://stackoverflow.com/questions/130763/request-uac-elevation-from-within-a-python-script
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        logger.critical("Cannot get admin privileges.")
+        lgger.debug(e)
+        raise False
+
 if __name__ == '__main__':
-	main(sys.argv[1:])
+	
+	if platform.system() == "Windows":
+		if is_admin():
+			# Detect if running frozen version, where one more argument exists (filename)
+			if getattr(sys, "frozen", False):
+				main(sys.argv[2:])
+			else:
+				main(sys.argv[1:])
+		else:
+			# Re-run the program with admin rights, don't use __file__ since py2exe won't know about it
+			# Use sys.argv[0] as script path and sys.argv[1:] as arguments, join them as lpstr, quoting each parameter or spaces will divide parameters
+			#lpParameters = sys.argv[0] + " "
+			lpParameters = ""
+			for i, item in enumerate(sys.argv[0:]):
+				lpParameters += '"' + item + '" '
+			try:
+				ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, lpParameters , None, 1)
+			except:
+				sys.exit(1)
+	else:
+		main(sys.argv[1:])
 
