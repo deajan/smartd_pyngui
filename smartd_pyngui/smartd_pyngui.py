@@ -4,8 +4,8 @@
 #### BASIC FUNCTIONS & DEFINITIONS #########################################################################
 
 APP_NAME = 'smartd_pyngui'  # Stands for smart daemon python native gui
-APP_VERSION = '0.6-dev'
-APP_BUILD = '2019010202'
+APP_VERSION = '0.6-rc1'
+APP_BUILD = '2019010203'
 APP_DESCRIPTION = 'smartd v5.4+ configuration interface'
 CONTACT = 'ozy@netpower.fr - http://www.netpower.fr'
 COPYING = 'Written in 2012-2019'
@@ -112,7 +112,6 @@ def logger_get_logger(logger_name):
     return logger
 
 logger = logger_get_logger(APP_NAME)
-logger.info("Running on python " + platform.python_version() + " / " + str(platform.uname()))
 
 #### ACTUAL APPLICATION ######################################################################################
 
@@ -226,6 +225,7 @@ class Configuration:
             except Exception as e:
                 logger.error("Cannot close file [" + self.smartConfFile + "] after reading.")
                 logger.debug(e)
+        return True
 
     def writeSmartdConfFile(self):
         try:
@@ -257,6 +257,8 @@ class Configuration:
         except Exception as e:
             logger.error("Cannot close file [" + self.smartConfFile + "] after writing.")
             logger.debug(e)
+
+        return True
 
 class MainGui:
     def __init__(self, config):
@@ -935,12 +937,11 @@ def main(argv):
     config = Configuration()
 
     try:
-        config.driveList, config.configList = config.readSmartdConfFile()
+        config.readSmartdConfFile()
+        logger.debug(str(config.driveList))
+        logger.debug(str(config.configList))
     except Exception as e:
         logger.info("Using default configuration")
-
-    logger.debug(str(config.driveList))
-    logger.debug(str(config.configList))
 
     try:
         gui = MainGui(config)
@@ -965,6 +966,8 @@ def is_admin():
 
 
 if __name__ == '__main__':
+
+    logger.info("Running on python " + platform.python_version() + " / " + str(platform.uname()))
 
     if platform.system() == "Windows":
         if is_admin():
