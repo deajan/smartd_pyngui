@@ -1,13 +1,15 @@
-from smartd_pyngui.smartd_pyngui import *
+from smartd_pyngui import *
 
 SMARTD_TEST_FILE='tests/smartd.conf'
-SMARTD_TEST_FILE_NEW='tests/smartd_new.conf'
+SMARTD_TEST_FILE_COMPARAISON='tests/smartd-vanilla.conf'
 
 config=Configuration(SMARTD_TEST_FILE)
 
 
 def test_readSmartdConfFile():
-	assert readSmartdConfFile() == True
+	#print(config.readSmartdConfFile())
+	assert config.readSmartdConfFile() == True
+	config.readSmartdConfFile()
 	assert isinstance(config.driveList, list)
 	assert isinstance(config.configList, list)
 
@@ -17,13 +19,28 @@ def test_readSmartdConfFile():
 
 def test_writeSmartdConfFile():
 	testDrives = ['DEVICESCAN']
-	testConf = ['-H', '-l error', '-f', '-C 197+', '-U 198+', '-t', '-l selftest', '-I 194', '-m <nomailer>', '-M exec "[PATH]\\erroraction.cmd"', '-n sleep,7,q', '-s (S/../.././10|L/../../[5]/13)']
+	testConf = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-n sleep,7,q', '-s (L/../../[4]/13|S/../../[1234567]/10)', '-m root']
 
 	config.driveList = testDrives
 	config.configList = testConf
-	res = writeSmartdConfFile()
-	assert res == True
-	assert os.path.isfile(SMARTD_TEST_FILE_NEW) == True
+	assert config.writeSmartdConfFile() == True
 
 def test_compareConfFiles():
-	pass
+	handle = open(SMARTD_TEST_FILE, 'r')
+	handleCompare = open(SMARTD_TEST_FILE_COMPARAISON, 'r')
+	
+	comparaisonResult = True
+
+	for line in handle.readlines():
+		lineCompare = handleCompare.readline()
+		if not line[0] == "#" and line[0] != "\n" and line[0] != "\r" and line[0] != " ":
+			if not line == lineCompare:
+				comparaisonResult = False
+				print('Error in comparaison')
+				print(line)
+				print(lineCompare)
+
+	handle.close()
+	handleCompare.close()
+	
+	assert comparaisonResult == True

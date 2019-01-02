@@ -1,3 +1,7 @@
 #!/usr/bin/env sh
 
-python ./smartd_pyngui/smartd_pyngui.py
+if type python3 > /dev/null 2>&1; then
+	python3 ./smartd_pyngui/smartd_pyngui.py
+else
+	python ./smartd_pynggui/smartd_pyngui.py
+fi
