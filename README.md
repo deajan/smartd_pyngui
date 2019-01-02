@@ -4,11 +4,11 @@ Portable GUI written in python to configure the smart daemon from smartmontools 
 Should write smartd.conf files compatible with every smartmontools release since 5.43
 Works on Windows NT 5+, Linux, *BSD (and maybe Mac ?)
 
-Tested with Python 2.7 and 3.4.4
+Tested with Python 3.4 and 3.7
 
 ## Installation
 
-smartd-pyngui needs tkinter and pygubu in order to work.
+smartd-pyngui needs tkinter PySimpleGUI.
 tkinter should be available with a large range of distributions
 
 Example for Redhat / CentOS / Fedora:
@@ -21,17 +21,17 @@ Example for Debian / Ubuntu / Mint:
 for Python 2.x: ```apt-get install python-tk```
 for Python 3.x: ```apt-get install python3-tk```
 
-The easyiest way to get pygubu is using pip.
+The easyiest way to get PySimpleGUI is using pip.
 
 If not installed, get pip by with the following command:
 
 ```wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py```
 
-After that, you may install pygubu with pip using ```pip install pygubu```
+After that, you may install PySimpleGUI with pip using ```pip install PySimpleGUI``` or ```pip install PySimpleGUI27``` for python 2.7.
 
 ## Usage
 
-Make sure that the main .py file and .ui file are in the same path and run:
+Run
 ```python smartd-pyngui.py```
 
 ## Executable files
