@@ -5,7 +5,7 @@
 
 APP_NAME = 'smartd_pyngui'  # Stands for smart daemon python native gui
 APP_VERSION = '0.6-rc1'
-APP_BUILD = '2019010203'
+APP_BUILD = '2019010204'
 APP_DESCRIPTION = 'smartd v5.4+ configuration interface'
 CONTACT = 'ozy@netpower.fr - http://www.netpower.fr'
 COPYING = 'Written in 2012-2019'
@@ -212,6 +212,9 @@ class Configuration:
                             configList[i] = configList[i].strip()
                         driveList.append(configList[0])
                         del configList[0]
+
+                self.driveList = driveList
+                self.configList = configList
             except Exception as e:
                 msg = "Cannot read in config file [ " + self.smartConfFile + "]."
                 logger.error(msg)
@@ -221,7 +224,7 @@ class Configuration:
 
             try:
                 fileHandle.close()
-                return (driveList, configList)
+                return True
             except Exception as e:
                 logger.error("Cannot close file [" + self.smartConfFile + "] after reading.")
                 logger.debug(e)
