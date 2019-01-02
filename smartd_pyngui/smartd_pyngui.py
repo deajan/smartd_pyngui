@@ -33,6 +33,7 @@ import re  # Regex handling
 import time  # sleep command
 import traceback  # trace module
 import subprocess # serviceHandler
+print(sys.version_info)
 if sys.version_info[0] >= 3:
     import PySimpleGUI as sg
 else:
