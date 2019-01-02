@@ -5,6 +5,8 @@
 BASE_DIR="$(pwd)"
 BASE_DIR="${BASE_DIR%%/tests*}"
 
+echo using basedir [$BASE_DIR]
+
 # Arguments: 1= Pid to wait for, 2= timeout (s)
 function WaitForIt {
 	local start=$SECONDS
@@ -22,6 +24,7 @@ function WaitForIt {
 find "$BASE_DIR" -name "*.pyc" -or -name "__pycache__" | xargs -I {} rm -rf {}
 
 export PYTHONPATH=$BASE_DIR
+export DISPLAY=:0.0
 
 cd "$BASE_DIR" || (echo "Cannot switch to directory [$BASE_DIR]." && exit 1)
 
