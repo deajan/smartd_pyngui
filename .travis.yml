@@ -8,6 +8,6 @@ python:
     - 3.5
     - nightly
 #    - pypy3
-install: "pip install PySimpleGUI pytest nuitka"
-script: run_tests.sh
+install: "pip install PySimpleGUI PySimpleGUI27 pytest nuitka"
+script: ./run_tests.sh
 
