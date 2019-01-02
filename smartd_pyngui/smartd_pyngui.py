@@ -5,7 +5,7 @@
 
 APP_NAME = 'smartd_pyngui'  # Stands for smart daemon python native gui
 APP_VERSION = '0.6-rc1'
-APP_BUILD = '2019010204'
+APP_BUILD = '2019010205'
 APP_DESCRIPTION = 'smartd v5.4+ configuration interface'
 CONTACT = 'ozy@netpower.fr - http://www.netpower.fr'
 COPYING = 'Written in 2012-2019'
@@ -33,7 +33,10 @@ import re  # Regex handling
 import time  # sleep command
 import traceback  # trace module
 import subprocess # serviceHandler
-import PySimpleGUI as sg
+if sys.version_info[0] >= 3:
+    import PySimpleGUI as sg
+else:
+    import PySimpleGUI27 as sg
 from datetime import datetime
 
 # Logging modules
