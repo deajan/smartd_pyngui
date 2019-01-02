@@ -97,7 +97,7 @@ def logger_get_file_handler():
             tempLogFile = tempfile.gettempdir() + os.sep + APP_NAME + '.log'
             print('Cannot create logfile ' + LOG_FILE)
             print('Trying temporary log file in ' + tempLogFile)
-            file_handler = RotatingFileHandler(tempLogFile, mode='a', encoding='utf-8', maxBytes=1000000, backupCount=1)
+            file_handler = logging.handlers.RotatingFileHandler(tempLogFile, mode='a', encoding='utf-8', maxBytes=1000000, backupCount=1)
         except:
             print('Cannot create temporary log file either. Will not log.')
             return False
