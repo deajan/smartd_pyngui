@@ -406,13 +406,13 @@ class MainGuiApp:
         energy_options = [[sg.Frame('Energy saving', [[sg.Column(energy_text), sg.Column(energy_choices)],
                                                       self.spacer_tweak,
                                                       ])]]
-
+        
         # Email options
-        alerts = [[sg.Radio('Use %s internal alert system' % APP_NAME, group_id='alerts', key='useInternalMailer', default=True,
+        alerts = [[sg.Radio('Use %s internal alert system' % APP_NAME, group_id='alerts', key='use_internal_alert', default=True,
                             enable_events=True), sg.Button('Configure')],
                   [sg.Radio(
-                      'Use system mail command to send alerts to the following addresses (comma separated list) on Linux',
-                      group_id='alerts', key='use_mailer', default=False, enable_events=True)],
+                      'Use system mail command to send alerts to the following addresses (comma separated list) on Unixes',
+                      group_id='alerts', key='use_system_mailer', default=False, enable_events=True)],
                   [sg.InputText(key='mail_addresses', size=(98, 1), do_not_clear=True)],
                   [sg.Radio('Use the following external alert handling script', group_id='alerts',
                             key='use_external_script', default=False, enable_events=True)],
@@ -465,7 +465,7 @@ class MainGuiApp:
             self.window.FindElement('mail_addresses').Update(disabled=True)
             self.window.FindElement('external_script_path').Update(disabled=False)
         else:
-            self.window.FindElement('use_mailer').Update(True)
+            self.window.FindElement('use_system_mailer').Update(True)
             self.window.FindElement('mail_addresses').Update(disabled=False)
             self.window.FindElement('external_script_path').Update(disabled=False)
 
@@ -497,16 +497,8 @@ class MainGuiApp:
                 self.window.FindElement('drive_list').Update(disabled=True, background_color=self.color_grey_disabled)
             elif event == 'drive_manual':
                 self.window.FindElement('drive_list').Update(disabled=False, background_color=self.color_green_enabled)
-            elif event == 'use_mailer' or event == 'use_external_script':
-                if values['use_mailer'] is True:
-                    self.window.FindElement('mail_addresses').Update(disabled=False)
-                    self.window.FindElement('external_script_path').Update(disabled=True)
-                if values['useInternalMailer'] is True:
-                    self.window.FindElement('mail_addresses').Update(disabled=True)
-                    self.window.FindElement('external_script_path').Update(disabled=True)
-                if values['use_external_script'] is True:
-                    self.window.FindElement('mail_addresses').Update(disabled=True)
-                    self.window.FindElement('external_script_path').Update(disabled=False)
+            elif event == 'use_system_mailer' or event == 'use_internal_alert' or event == 'use_external_script':
+                self.alert_switcher(values)
             elif event == 'smart_conf_file':
                 self.config.smart_conf_file = values['smart_conf_file']
                 self.update_main_gui_config()
@@ -516,6 +508,18 @@ class MainGuiApp:
                 self.configure_internal_alerts()
 
         self.window.Close()
+
+    def alert_switcher(self, values):
+        if values['use_system_mailer'] is True:
+            self.window.FindElement('mail_addresses').Update(disabled=False)
+            self.window.FindElement('external_script_path').Update(disabled=True)
+        if values['use_internal_alert'] is True:
+            self.window.FindElement('mail_addresses').Update(disabled=True)
+            self.window.FindElement('external_script_path').Update(disabled=True)
+        if values['use_external_script'] is True:
+            self.window.FindElement('mail_addresses').Update(disabled=True)
+            self.window.FindElement('external_script_path').Update(disabled=False)
+
 
     def spacer_tweakF(self, pixels=10):
         return [sg.T(' ' * pixels, font=('Helvetica', 1))]
@@ -612,14 +616,36 @@ class MainGuiApp:
                     # TODO: handle q parameter
                     break
 
+        # TODO: replace FindElement with Element
+
+        #self.alert_switcher((['use_internal_alert'] = True))
         # Get alert options
+        # -m <nomailer> -M exec PATH/smartd_pyngui = use internal alert
+        # -m mail@addr.tld = use system mailer
+        # -m <nomailer> -M exec PATH/script = use external_script
+
+        config_list_flat = '\t'.join(self.config.config_list)
+        print(config_list_flat)
+        if '-m <nomailer> -M exec' in config_list_flat:
+            # TODO Remove fuzzy detection here
+            if APP_NAME in config_list_flat:
+                v = {'use_internal_alert' : True, 'use_system_mailer' : False, 'use_external_script' : False}
+            else:
+                v = {'use_internal_alert': False, 'use_system_mailer': False, 'use_external_script': True}
+            self.alert_switcher(v)
+
+        # else assume we use system mailer
+        else:
+            v = {'use_internal_alert': DEFAULT_UNIX_PAT, 'use_system_mailer': True, 'use_external_script': False}
+
+        """
         if '-m' in '\t'.join(self.config.config_list):
             for i, item in enumerate(self.config.config_list):
                 if '-m' in item:
                     index = i
 
                     mail_addresses = self.config.config_list[index].replace('-m ', '', 1)
-                    self.window.FindElement('use_mailer').Update(True)
+                    self.window.FindElement('use_system_mailer').Update(True)
                     if not mail_addresses == '<nomailer>':
                         self.window.FindElement('mail_addresses').Update(mail_addresses, disabled=False)
                     self.window.FindElement('external_script_path').Update(disabled=True)
@@ -638,8 +664,10 @@ class MainGuiApp:
                         self.config.config_list[index].replace('-M exec ', '', 1), disabled=False)
                     break
         else:
-            self.window.FindElement('use_mailer').Update(True)
+            self.window.FindElement('use_system_mailer').Update(True)
             self.window.FindElement('mail_addresses').Update(disabled=False)
+        """
+
 
     def get_main_gui_config(self, values):
         drive_list = []
@@ -783,7 +811,7 @@ class MainGuiApp:
 
         # TODO: -M can't exist without -m
         # Mailer options
-        if values['use_mailer'] is True:
+        if values['use_system_mailer'] is True:
             mail_addresses = values['mail_addresses']
             if len(mail_addresses) > 0:
                 config_list.append('-m ' + mail_addresses)
@@ -878,7 +906,7 @@ class MainGuiApp:
 
         # Display the Window and get values
         try:
-            self.window = sg.Window(APP_NAME + ' - ' + APP_VERSION + ' ' + APP_BUILD, icon=ICON_FILE, resizable=True,
+            self.alert_window = sg.Window(APP_NAME + ' - ' + APP_VERSION + ' ' + APP_BUILD, icon=ICON_FILE, resizable=True,
                                     size=(500, 600),
                                     text_justification='left').Layout(layout)
         except Exception as e:
@@ -887,7 +915,7 @@ class MainGuiApp:
             sys.exit(1)
 
         # Finalize window before Update functions can work
-        self.window.Finalize()
+        self.alert_window.Finalize()
         # self.config.readErrorConfigFile()
         self.update_alert_gui_config()
 
@@ -914,12 +942,12 @@ class MainGuiApp:
             value = self.config.int_alert_config['ALERT'][key]
             if key == 'MAIL_ALERT' or key == 'COMPRESS_LOGS' or key == 'UseSmtpAuth' or key == 'LOCAL_ALERT':
                 if value == 'yes':
-                    self.window.FindElement(key).Update(True)
+                    self.alert_window.FindElement(key).Update(True)
                 elif value == 'no':
-                    self.window.FindElement(key).Update(False)
+                    self.alert_window.FindElement(key).Update(False)
             else:
                 try:
-                    self.window.FindElement(key).Update(self.config.int_alert_config['ALERT'][key])
+                    self.alert_window.FindElement(key).Update(self.config.int_alert_config['ALERT'][key])
                 except:
                     msg = 'Cannot update [%s] value.' % key
                     sg.PopupError(msg)
@@ -927,7 +955,7 @@ class MainGuiApp:
                     logger.debug('Trace:', exc_info=True)
 
     def get_alert_gui_config(self, values):
-        print(values)
+        print(values) # TODO
 
 
 def system_service_handler(service, action):
@@ -1049,11 +1077,23 @@ def system_service_handler(service, action):
 
 
 def trigger_alert(config, mode=None): #  TODO write alerts
+    config.read_alert_config_file()
+
     if mode == 'test':
-        print('test')
+        warning_message = "Smartontools Alert Test"
     else:
-        config.read_alert_config_file()
-        print(config.int_alert_config)
+        warning_message = config['ALERT']['WARNING_MESSAGE']
+
+    if config['ALERT']['MAIL_ALERT'] != 'no':
+        src = config['ALERT']['SOURCE_MAIL']
+        dst = config['ALERT']['DESTINATION_MAILS']
+        server = config['ALERT']['SMTP_SERVER']
+        port = config['ALERT']['SMTP_PORT']
+
+        ofunctions.Mailer.mailer(source_mail=src, destination_mails=dst, smtp_server=server, smtp_port=port)
+
+    if config['ALERT']['LOCAL_ALERT'] != 'no':
+        ofunctions.command_runner('wtssendmsg.exe %s' % warning_message)
 
     sys.exit()
 
