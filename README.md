@@ -1,4 +1,4 @@
-## smartd-pyngui  [![Build Status](https://travis-ci.org/deajan/smartd_pyngui.svg?branch=master)](https://travis-ci.org/deajan/smartd_pyngui) [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![GitHub Release](https://img.shields.io/github/release/deajan/smartd_pyngui.svg?label=Latest)](https://github.com/deajan/osync/releases/latest)
+## smartd-pyngui  [![Build Status](https://travis-ci.org/deajan/smartd_pyngui.svg?branch=master)](https://travis-ci.org/deajan/smartd_pyngui) [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 
 
