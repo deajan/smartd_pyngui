@@ -7,75 +7,132 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import smtplib
 import ssl
+import socket
+import os
 
-def mailer(source_mail=None, destination_mails=None, split_mails=False, smtp_server=None, smtp_port=25, smtp_user=None,
-           smtp_password=None, security=None, subject=None, body=None, attachment=None, html_enabled=False,
-           debug=False):
+
+def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp_server='localhost', smtp_port=25,
+               smtp_user=None, smtp_password=None, security=None, subject=None, body=None, attachment=None,
+               html_enabled=False, bcc_mails=None, debug=False):
+    """
+
+    :param source_mail:
+    :param destination_mails: Accepts space separated email addresses or list of email addresses
+    :param split_mails: When multiple mails exist, shall we create an email per addresss or an unique one
+    :param smtp_server:
+    :param smtp_port:
+    :param smtp_user:
+    :param smtp_password:
+    :param security:
+    :param subject:
+    :param body:
+    :param attachment:
+    :param html_enabled:
+    :param bcc_mails:
+    :param debug:
+    :return:
+    """
 
     if subject is None:
         raise ValueError('No subject set')
 
     if destination_mails is None:
         raise ValueError('No destination mails set')
+    elif type(destination_mails) is not list:
+        # Make sure destination mails is a list
+        destination_mails = destination_mails.split(' ')
 
-    # Create a multipart message and set headers
-    message = MIMEMultipart()
-    message["From"] = source_mail
-    message["To"] = destination_mails
-    message["Subject"] = subject
-   # message["Bcc"] = receiver_email  # Recommended for mass emails
+    for destination_mail in destination_mails:
 
-    # Add body to email
-    message.attach(MIMEText(body, "plain"))
-    if html_enabled:
-        message.attach(MIMEText(body, "html"))
-    if attachment is not None:
-        with open(attachment, 'rb') as h_attachment:
-            # Add file as application/octet-stream
-            # Email client can usually download this automatically as attachment
-            part = MIMEBase("application", "octet-stream")
-            part.set_payload(h_attachment.read())
+        # Create a multipart message and set headers
+        message = MIMEMultipart()
+        message["From"] = source_mail
+        if split_mails:
+            message["To"] = destination_mail
+        else:
+            message["To"] = ' '.join(destination_mails)
+        message["Subject"] = subject
 
-            # Encode file in ASCII characters to send by email
-            encoders.encode_base64(part)
+        if bcc_mails is not None:
+            message["Bcc"] = bcc_mails  # Recommended for mass emails
 
-            # Add header as key/value pair to attachment part
-            part.add_header(
-                "Content-Disposition",
-                f"attachment; filename= {attachment}",
-            )
+        # Add body to email
+        if body is not None:
+            if html_enabled:
+                message.attach(MIMEText(body, "html"))
+            else:
+                message.attach(MIMEText(body, "plain"))
 
-            # Add attachment to message and convert message to string
-            message.attach(part)
+        if attachment is not None:
+            with open(attachment, 'rb') as f_attachment:
+                # Add file as application/octet-stream
+                # Email client can usually download this automatically as attachment
+                part = MIMEBase("application", "octet-stream")
+                part.set_payload(f_attachment.read())
 
-    text = message.as_string()
+                # Encode file in ASCII characters to send by email
+                encoders.encode_base64(part)
 
-    # Not working yet, check on port 465 necessary
-    if security == 'ssl':
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as remote_server:
-            if debug:
-                remote_server.set_debuglevel(True)
-            remote_server.ehlo()
-            remote_server.login(smtp_user, smtp_password)
-            remote_server.sendmail(source_mail, destination_mails, text)
+                # Add header as key/value pair to attachment part
+                part.add_header(
+                    "Content-Disposition",
+                    f"attachment; filename= {os.path.basename(attachment)}",
+                )
 
-    elif security == 'tls':
-        # TLS
-        context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_server, smtp_port) as remote_server:
-            if debug:
-                remote_server.set_debuglevel(True)
-            remote_server.ehlo()
-            remote_server.starttls(context=context)
-            remote_server.ehlo()
-            remote_server.login(smtp_user, smtp_password)
-            remote_server.sendmail(source_mail, destination_mails, text)
+                # Add attachment to message and convert message to string
+                message.attach(part)
 
-    else:
-        with smtplib.SMTP(smtp_server, smtp_port) as remote_server:
-            if debug:
-                remote_server.set_debuglevel(True)
-            remote_server.ehlo()
-            remote_server.login(smtp_user, smtp_password)
-            remote_server.sendmail(source_mail, destination_mails, text)
+        text = message.as_string()
+
+        try:
+            if security == 'ssl':
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as remote_server:
+                    if debug:
+                        remote_server.set_debuglevel(True)
+                    remote_server.ehlo()
+                    if smtp_user is not None and smtp_password is not None:
+                        remote_server.login(smtp_user, smtp_password)
+                    remote_server.sendmail(source_mail, destination_mails, text)
+
+            elif security == 'tls':
+                # TLS
+                context = ssl.create_default_context()
+                with smtplib.SMTP(smtp_server, smtp_port) as remote_server:
+                    if debug:
+                        remote_server.set_debuglevel(True)
+                    remote_server.ehlo()
+                    remote_server.starttls(context=context)
+                    remote_server.ehlo()
+                    if smtp_user is not None and smtp_password is not None:
+                        remote_server.login(smtp_user, smtp_password)
+                    remote_server.sendmail(source_mail, destination_mails, text)
+
+            else:
+                with smtplib.SMTP(smtp_server, smtp_port) as remote_server:
+                    if debug:
+                        remote_server.set_debuglevel(True)
+                    remote_server.ehlo()
+                    if smtp_user is not None and smtp_password is not None:
+                        remote_server.login(smtp_user, smtp_password)
+                    remote_server.sendmail(source_mail, destination_mails, text)
+        except ConnectionRefusedError as e:
+            print(e)
+        except ConnectionAbortedError as e:
+            print(e)
+        except ConnectionResetError as e:
+            print(e)
+        except ConnectionError as e:
+            print(e)
+        except socket.gaierror as e:
+            print(e)
+        except smtplib.SMTPNotSupportedError as e:
+            # Server does not support STARTTLS
+            print(e)
+        except ssl.SSLError as e:
+            print(e)
+        except smtplib.SMTPAuthenticationError as e:
+            print(e)
+
+        if not split_mails:
+            break
