@@ -1173,24 +1173,25 @@ if __name__ == '__main__':
             # so we need to fill runner with sys.argv[0] absolute path
             runner = os.path.abspath(sys.argv[0])
             arguments = sys.argv[1:]
+            # current_dir = os.path.dirname(runner)
 
             logger.debug('Running as Nuitka with runner [%s]' % runner)
             logger.debug('Arguments are %s' % arguments)
 
         # If a freezer is used (PyInstaller, cx_freeze, py2exe)
         elif getattr(sys, "frozen", False):
-
             runner = os.path.abspath(sys.executable)
             arguments = sys.argv[1:]
+            # current_dir = os.path.dirname(runner)
 
             logger.debug('Running as Frozen with runner [%s]' % runner)
             logger.debug('Arguments are %s' % arguments)
 
         # If standard interpreter CPython is used
         else:
-
             runner = os.path.abspath(sys.executable)
             arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:]
+            # current_dir = os.path.abspath(sys.argv[0])
 
             logger.debug('Running as CPython with runner [%s]' % runner)
             logger.debug('Arguments are %s' % arguments)
