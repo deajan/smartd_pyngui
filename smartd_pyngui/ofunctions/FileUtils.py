@@ -6,6 +6,7 @@ import shutil
 import time
 import hashlib
 import json
+from fnmatch import fnmatch
 from contextlib import contextmanager
 from threading import Lock
 
@@ -44,10 +45,21 @@ def remove_dir(path):
             shutil.rmtree(path)
 
 
+def glob_path_match(path, pattern_list):
+    """
+    Checks if path is in a list of glob style wildcard paths
+    :param path: path of file / directory
+    :param pattern_list: list of wildcard patterns to check for
+    :return: Boolean
+    """
+    return any(fnmatch(os.path.basename(path), pattern) for pattern in pattern_list)
+
+
 def get_files_recursive(root, d_exclude_list=[], f_exclude_list=[], ext_exclude_list=[], primary_root=None):
     """
     Walk a path to recursively find files
     Modified version of https://stackoverflow.com/a/24771959/2635443 that includes exclusion lists
+    and accepts glob style wildcards on files and directories
     :param root: path to explore
     :param d_exclude_list: list of root relative directories paths to exclude
     :param f_exclude_list: list of filenames without paths to exclude
@@ -60,12 +72,13 @@ def get_files_recursive(root, d_exclude_list=[], f_exclude_list=[], ext_exclude_
     d_exclude_list = [os.path.normpath(d) for d in d_exclude_list]
 
     files = [os.path.join(root, f) for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))
-             and f not in f_exclude_list and os.path.splitext(f)[1] not in ext_exclude_list]
+             and not glob_path_match(f, f_exclude_list) and os.path.splitext(f)[1] not in ext_exclude_list]
     dirs = [d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d))]
     for d in dirs:
         p_root = os.path.join(primary_root, d) if primary_root is not None else d
-        if p_root not in d_exclude_list:
-            files_in_d = get_files_recursive(os.path.join(root, d), d_exclude_list, f_exclude_list, ext_exclude_list, primary_root=p_root)
+        if not glob_path_match(p_root, d_exclude_list):
+            files_in_d = get_files_recursive(os.path.join(root, d), d_exclude_list, f_exclude_list, ext_exclude_list,
+                                             primary_root=p_root)
             if files_in_d:
                 for f in files_in_d:
                     files.append(os.path.join(root, f))
@@ -175,21 +188,21 @@ def check_file_hash(file, hashsum):
             return True
         else:
             raise ValueError('File [%s] has an invalid sha256sum [%s]. Reference sum is [%s].'
-                           % (file, calculated_hashsum, hashsum))
+                             % (file, calculated_hashsum, hashsum))
     else:
         return False
 
 
-def write_json_to_file(file, data):  # WIP
+def write_json_to_file(file, data):
     """
     Creates a manifest to the file containing it's sha256sum and the installation result
 
-    :param file:
+    :param file: File to write to
+    :param data: Dict to write
     :return:
     """
     with open(file, 'w', encoding='utf-8') as fp:
         json.dump(data, fp, ensure_ascii=False)
-
 
 
 def read_json_from_file(file):
