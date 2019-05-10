@@ -1080,20 +1080,53 @@ def trigger_alert(config, mode=None): #  TODO write alerts
     config.read_alert_config_file()
 
     if mode == 'test':
-        warning_message = "Smartontools Alert Test"
+        subject = 'Smartmontools email test'
+        warning_message = "Smartmontools Alert Test"
+    elif mode == 'install':
+        subject = 'Smartmontools installation test'
+        warning_message = 'Smartmontools installation confirmation.'
     else:
+        subject = 'Smartmontools alert'
         warning_message = config['ALERT']['WARNING_MESSAGE']
 
     if config['ALERT']['MAIL_ALERT'] != 'no':
         src = config['ALERT']['SOURCE_MAIL']
         dst = config['ALERT']['DESTINATION_MAILS']
-        server = config['ALERT']['SMTP_SERVER']
-        port = config['ALERT']['SMTP_PORT']
+        smtp_server = config['ALERT']['SMTP_SERVER']
+        smtp_port = config['ALERT']['SMTP_PORT']
 
-        ofunctions.Mailer.mailer(source_mail=src, destination_mails=dst, smtp_server=server, smtp_port=port)
+        try:
+            smtp_user = config['ALERT']['SMTP_USER']
+        except:
+            smtp_user = None
+
+        try:
+            smtp_password = config['ALERT']['SMTP_PASSWORD']
+        except:
+            smtp_password = None
+
+        try:
+            security = config['ALERT']['SECURITY']
+        except:
+            security = None
+
+        try:
+            ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server, smtp_port=smtp_port,
+                                 smtp_user=smtp_user, smtp_password=smtp_password, security=security, subject=subject,
+                                 body=warning_message)
+
+        # TODO Attachment is needed here (complete with smartctl output and env variables)
+
+        except Exception as e:
+            logger.error('Cannot send email: %s' % e)
+            logger.debug('Trace', exc_info=True)
 
     if config['ALERT']['LOCAL_ALERT'] != 'no':
-        ofunctions.command_runner('wtssendmsg.exe %s' % warning_message)
+        try:
+            ofunctions.command_runner('wtssendmsg.exe %s' % warning_message)
+        except Exception as e:
+            logger.error('Cannot run alert program: %s' % e)
+            logger.debug('Trace', exc_info=True)
 
     sys.exit()
 
@@ -1116,6 +1149,8 @@ def main(argv):
             trigger_alert(config)
         elif argv[1] == '--testalert':
             trigger_alert(config, 'test')
+        elif argv[1] == '--installmail':
+            trigger_alert(config, 'install')
 
     try:
         config.read_smartd_conf_file()
