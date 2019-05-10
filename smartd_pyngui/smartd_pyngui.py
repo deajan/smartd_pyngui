@@ -18,9 +18,9 @@ import ofunctions.Mailer
 from scrambledconfigparser.scrambledconfigparser import ScrambledConfigParser
 
 if sys.version_info[0] >= 3:
-    import PySimpleGUI as sg
-# else:
-#    import PySimpleGUI27 as sg
+    import PySimpleGUI.PySimpleGUI as sg
+else:
+    import PySimpleGUI.PySimpleGUI27 as sg
 
 # Module pywin32
 if platform.system() == "Windows":
@@ -636,7 +636,7 @@ class MainGuiApp:
 
         # else assume we use system mailer
         else:
-            v = {'use_internal_alert': DEFAULT_UNIX_PAT, 'use_system_mailer': True, 'use_external_script': False}
+            v = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
 
         """
         if '-m' in '\t'.join(self.config.config_list):
@@ -1133,19 +1133,20 @@ def main(argv):
 
 
 # Improved answer I have done in https://stackoverflow.com/a/49759083/2635443
-# admin privileges check for Windows & Linux 2019010910
 if __name__ == '__main__':
     current_os_name = os.name
-    if ofunctions.is_admin() is False:  # TODO # WIP
+    if ofunctions.is_admin() is True:  # TODO # WIP
         main(sys.argv)
     else:
+        # UAC elevation code working for CPython, Nuitka >= 0.6.2, PyInstaller, PyExe, CxFreeze
+
         # Regardless of the runner (CPython, Nuitka or frozen CPython), sys.argv[0] is the relative path to script,
         # sys.argv[1] are the arguments
         # The only exception being CPython on Windows where sys.argv[0] contains absolute path to script
         # Regarless of OS, sys.executable will contain full path to python binary for CPython and Nuitka,
         # and full path to frozen executable on frozen CPython
 
-        # Recapitulative table done with
+        # Recapitulative table create with
         # (CentOS 7x64 / Python 3.4 / Nuitka 0.6.1 / PyInstaller 3.4) and
         # (Windows 10 x64 / Python 3.7x32 / Nuitka 0.6.2.10 / PyInstaller 3.4)
         # --------------------------------------------------------------------------------------------------------------
@@ -1157,25 +1158,42 @@ if __name__ == '__main__':
         # | Win | sys.executable | C:\Python\python.exe          | C:\Python\Python.exe | C:\absolute\path\to\test.exe |
         # --------------------------------------------------------------------------------------------------------------
 
-        # If a freezer is used (PyInstaller, cx_freeze, py2exe)
-        if getattr(sys, "frozen", False):
-            runner = sys.executable
+        # Nuitka 0.6.2 and newer define builtin __nuitka_binary_dir
+        # Nuitka does not set the frozen attribute on sys
+        # Nuitka < 0.6.2 can be detected in sloppy ways, ie if not sys.argv[0].endswith('.py') or len(sys.path) < 3
+        # Let's assume this will only be compiled with newer nuitka, and remove sloppy detections
+        try:
+            __nuitka_binary_dir
+            is_nuitka_compiled = True
+        except NameError:
+            is_nuitka_compiled = False
+
+        if is_nuitka_compiled:
+            # On nuitka, sys.executable is the python binary, even if it does not exist in standalone,
+            # so we need to fill runner with sys.argv[0] absolute path
+            runner = os.path.abspath(sys.argv[0])
             arguments = sys.argv[1:]
 
-        # If script is Nuitka compiled (sloppy detection that must happen after frozen detection).
-        # Nuitka does not set the frozen attribute on sys
-        elif sys.argv[0].endswith('.exe') or not sys.argv[0].endswith('.py'):
-            # On nuitka, sys.executable is the python binary, even if it does not exist in standalone,
-            # so we need to fill runner with sys.argv[0] plus absolute path
-            runner = os.path.abspath(os.path.dirname(sys.argv[0])) + os.sep + sys.argv[0]
+            logger.debug('Running as Nuitka with runner [%s]' % runner)
+            logger.debug('Arguments are %s' % arguments)
+
+        # If a freezer is used (PyInstaller, cx_freeze, py2exe)
+        elif getattr(sys, "frozen", False):
+
+            runner = os.path.abspath(sys.executable)
             arguments = sys.argv[1:]
-        # If standard interpretet CPython is used
+
+            logger.debug('Running as Frozen with runner [%s]' % runner)
+            logger.debug('Arguments are %s' % arguments)
+
+        # If standard interpreter CPython is used
         else:
-            runner = sys.executable
-            if current_os_name == 'nt':
-                arguments = sys.argv
-            else:
-                arguments = [os.path.abspath(os.path.dirname(sys.argv[0])) + os.sep + sys.argv[0]] + sys.argv[1:]
+
+            runner = os.path.abspath(sys.executable)
+            arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:]
+
+            logger.debug('Running as CPython with runner [%s]' % runner)
+            logger.debug('Arguments are %s' % arguments)
 
         if current_os_name == 'nt':
             # Re-run the program with admin rights, don't use __file__ since frozen python won't know about it
@@ -1209,7 +1227,8 @@ if __name__ == '__main__':
                 sys.exit(exit_code)
 
             except Exception as e:
-                logger.debug(e, exc_info=True)
+                logger.info(e)
+                logger.debug('Trace', exc_info=True)
                 sys.exit(255)
         # Linux and hopefully others
         else:
@@ -1227,7 +1246,7 @@ if __name__ == '__main__':
                 output = subprocess.check_output(command, stderr=subprocess.STDOUT,
                                                  shell=True, universal_newlines=False)
                 try:
-                    output = output.decode('unicode_escape')
+                    output = output.decode('unicode_escape', errors='ignore')
                 except Exception as exc:
                     pass
                 logger.debug('Child output: %s' % output)
