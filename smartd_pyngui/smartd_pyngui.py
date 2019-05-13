@@ -294,15 +294,17 @@ class Configuration:
             raise Exception
 
     def write_alert_config_file(self):
-        if os.path.isdir(os.path.dirname(self.int_alert_config['ALERT']['conf_file'])):
-            with open(self.int_alert_config['ALERT']['conf_file'], 'wb') as fp:
+        if os.path.isdir(os.path.dirname(self.alert_conf_file)):
+            with open(self.alert_conf_file, 'wb') as fp:
                 self.int_alert_config.write_scrambled(fp)
         else:
-            msg = 'Cannot write [%s]. Directory maybe be missing.' % self.int_alert_config['ALERT']['conf_file']
+            msg = 'Cannot write [%s]. Directory maybe be missing.' % self.alert_conf_file
 
     def read_alert_config_file(self):
-        if os.path.isfile(self.int_alert_config['ALERT']['conf_file']):
-            self.int_alert_config.read_scrambled(self.int_alert_config['ALERT']['conf_file'])
+        if os.path.isfile(self.alert_conf_file):
+            self.int_alert_config.read_scrambled(self.alert_conf_file)
+        else:
+            self.error('Cannot read [%s].' % self.alert_conf_file)
 
 class MainGuiApp:
     def __init__(self, config):
@@ -976,7 +978,7 @@ class MainGuiApp:
             if event == 'Save & trigger test alert':
                 self.get_alert_gui_config(values)
                 self.config.write_alert_config_file()
-                ofunctions.command_runner('"%s" --testalert' % self.config.app_executable)
+                trigger_alert(self.config, 'test')
             elif event == 'Save & exit':
                 self.get_alert_gui_config(values)
                 self.config.write_alert_config_file()
@@ -1127,53 +1129,67 @@ def system_service_handler(service, action):
 
 
 def trigger_alert(config, mode=None): #  TODO write alerts
-    config.read_alert_config_file()
+
+    src = None
+    dst = None
+    smtp_server = None
+    smtp_port = None
 
     if mode == 'test':
         subject = 'Smartmontools email test'
         warning_message = "Smartmontools Alert Test"
-    elif mode == 'install':
+    elif mode == 'installmail':
         subject = 'Smartmontools installation test'
         warning_message = 'Smartmontools installation confirmation.'
     else:
         subject = 'Smartmontools alert'
-        warning_message = config['ALERT']['WARNING_MESSAGE']
+        try:
+            warning_message = config.int_alert_config['ALERT']['WARNING_MESSAGE']
+        except TypeError:
+            warning_message = 'Default warning message not set !'
 
-    if config['ALERT']['MAIL_ALERT'] != 'no':
-        src = config['ALERT']['SOURCE_MAIL']
-        dst = config['ALERT']['DESTINATION_MAILS']
-        smtp_server = config['ALERT']['SMTP_SERVER']
-        smtp_port = config['ALERT']['SMTP_PORT']
+    if config.int_alert_config['ALERT']['MAIL_ALERT'] != 'no':
+        src = config.int_alert_config['ALERT']['SOURCE_MAIL']
+        dst = config.int_alert_config['ALERT']['DESTINATION_MAILS']
+        smtp_server = config.int_alert_config['ALERT']['SMTP_SERVER']
+        smtp_port = config.int_alert_config['ALERT']['SMTP_PORT']
 
         try:
-            smtp_user = config['ALERT']['SMTP_USER']
+            smtp_user = config.int_alert_config['ALERT']['SMTP_USER']
         except:
             smtp_user = None
 
         try:
-            smtp_password = config['ALERT']['SMTP_PASSWORD']
+            smtp_password = config.int_alert_config['ALERT']['SMTP_PASSWORD']
         except:
             smtp_password = None
 
         try:
-            security = config['ALERT']['SECURITY']
+            security = config.int_alert_config['ALERT']['SECURITY']
         except:
             security = None
 
+        if len(src) > 0 and len(dst) > 0 and len(smtp_server) > 0 and len(smtp_port) > 0:
+            try:
+                ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server, smtp_port=smtp_port,
+                                     smtp_user=smtp_user, smtp_password=smtp_password, security=security, subject=subject,
+                                     body=warning_message)
+
+            # TODO Attachment is needed here (complete with smartctl output and env variables)
+
+            except Exception as e:
+                logger.error('Cannot send email: %s' % e)
+                logger.debug('Trace', exc_info=True)
+        else:
+            logger.critical('Cannot trigger mail alert. Essential parameters missing.')
+            logger.critical('src: %s, dst: %s, smtp_server: %s, smtp_port; %s.' % (src, dst, smtp_server, smtp_port))
+
+    if config.int_alert_config['ALERT']['LOCAL_ALERT'] != 'no':
         try:
-            ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server, smtp_port=smtp_port,
-                                 smtp_user=smtp_user, smtp_password=smtp_password, security=security, subject=subject,
-                                 body=warning_message)
-
-        # TODO Attachment is needed here (complete with smartctl output and env variables)
-
-        except Exception as e:
-            logger.error('Cannot send email: %s' % e)
-            logger.debug('Trace', exc_info=True)
-
-    if config['ALERT']['LOCAL_ALERT'] != 'no':
-        try:
-            ofunctions.command_runner('wtssendmsg.exe %s' % warning_message)
+            exit_code, output = ofunctions.command_runner('wtssendmsg.exe %s' % warning_message)
+            if exit_code != 0:
+                logger.error('Running local alert failed with exit codd [%s].' % exit_code)
+                logger.error('Additional output: %s' % output)
         except Exception as e:
             logger.error('Cannot run alert program: %s' % e)
             logger.debug('Trace', exc_info=True)
@@ -1192,6 +1208,19 @@ def main(argv):
 
     config = Configuration()
 
+    try:
+        config.read_smartd_conf_file()
+        logger.debug(str(config.drive_list))
+        logger.debug(str(config.config_list))
+    except Exception:
+        logger.info('Using default smartd configuration.')
+
+    try:
+        config.read_alert_config_file()
+        logger.debug(str(config.int_alert_config['ALERT']['MAIL_ALERT'])) # WIP
+    except Exception:
+        logger.info('Using default alert configuration.')
+
     if len(argv) > 1:
         if argv[1] == '--alert':
             trigger_alert(config)
@@ -1199,13 +1228,7 @@ def main(argv):
             trigger_alert(config, 'test')
         elif argv[1] == '--installmail':
             trigger_alert(config, 'install')
-
-    try:
-        config.read_smartd_conf_file()
-        logger.debug(str(config.drive_list))
-        logger.debug(str(config.config_list))
-    except Exception:
-        logger.info("Using default configuration")
+        sys.exit() # TODO define exit code
 
     try:
         MainGuiApp(config)
