@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# WIP #TODO reload gui on conf file change
+# TODO : move sg.PopupError from config class to gui methods
 
 # IMPORTS ################################################################################################
 
@@ -233,14 +233,6 @@ class Configuration:
     def read_smartd_conf_file(self, conf_file=None):
         if conf_file is None:
             conf_file = self.smart_conf_file
-        """   
-        if not os.path.isfile(self.smart_conf_file):
-            msg = "No suitable [%s] file found, creating new file [%s]." % \
-                  (SMARTD_CONF_FILENAME, self.smart_conf_file)
-            logger.info(msg)
-            sg.Popup(msg)
-        else:
-        """
         try:
             with open(conf_file, 'r') as fp:
 
