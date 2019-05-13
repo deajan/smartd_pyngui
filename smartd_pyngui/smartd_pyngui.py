@@ -45,6 +45,7 @@ LOG_FILE = APP_NAME + '.log'
 
 SMARTD_SERVICE_NAME = 'smartd'
 SMARTD_CONF_FILENAME = 'smartd.conf'
+ALERT_CONF_FILENAME = 'alerts.conf'
 
 DEFAULT_UNIX_PATH = '/etc/smartd'
 
@@ -100,7 +101,7 @@ logger = ofunctions.logger_get_logger(LOG_FILE, debug=_DEBUG)
 class Configuration:
     smart_conf_file = ""
 
-    def __init__(self, file_path=None):
+    def __init__(self, file_path=None): # TODO investigate file_path usage here (which refers to both smartd and alert conf files)
         """Determine smartd configuration file path"""
 
         # TODO: app_root might be bad because of nuitka sys.argv[0] might not be the same
@@ -111,6 +112,12 @@ class Configuration:
         except OSError:
             self.app_executable = os.path.abspath(sys.argv[0])
             self.app_root = os.path.dirname(self.app_executable)
+
+        self.smart_conf_file = None
+        self.alert_conf_file = None
+
+        self.int_alert_config = ScrambledConfigParser()
+        self.int_alert_config.set_key(AES_ENCRYPTION_KEY)
 
         if file_path is not None:
             self.smart_conf_file = file_path
@@ -137,10 +144,24 @@ class Configuration:
                     os.path.join(program_files_x86, 'smartmontools', 'bin', SMARTD_CONF_FILENAME)
                 ]
 
-                for possible_path in smart_conf_file_possible_paths:
-                    if os.path.isfile(possible_path):
-                        self.smart_conf_file = possible_path
+                alert_conf_file_possible_paths = [
+                    os.path.join(self.app_root, ALERT_CONF_FILENAME),
+                    os.path.join(program_files_x64, 'smartmontools for Windows', 'bin', ALERT_CONF_FILENAME),
+                    os.path.join(program_files_x86, 'smartmontools for Windows', 'bin', ALERT_CONF_FILENAME),
+                    os.path.join(program_files_x64, 'smartmontools', 'bin', ALERT_CONF_FILENAME),
+                    os.path.join(program_files_x86, 'smartmontools', 'bin', ALERT_CONF_FILENAME)
+                ]
+
+                for possible_smartd_path in smart_conf_file_possible_paths:
+                    if os.path.isfile(possible_smartd_path):
+                        self.smart_conf_file = possible_smartd_path
                         break
+
+                for possible_alert_path in alert_conf_file_possible_paths:
+                    if os.path.isfile(possible_alert_path):
+                        self.alert_conf_file = possible_alert_path
+                        break
+
             else:
                 smart_conf_file_possible_paths = [
                     os.path.join(self.app_root, SMARTD_CONF_FILENAME),
@@ -152,19 +173,39 @@ class Configuration:
                     os.path.join('/etc', SMARTD_CONF_FILENAME)
                 ]
 
-                for possible_path in smart_conf_file_possible_paths:
-                    if os.path.isfile(possible_path):
-                        self.smart_conf_file = possible_path
+                alert_conf_file_possible_paths = [
+                    os.path.join(self.app_root, ALERT_CONF_FILENAME),
+                    os.path.join('/etc/smartmontools', ALERT_CONF_FILENAME),
+                    os.path.join('/etc/smartd', ALERT_CONF_FILENAME),
+                    os.path.join('/etc', ALERT_CONF_FILENAME),
+                    os.path.join('etc/smartmontools', ALERT_CONF_FILENAME),
+                    os.path.join('etc/smartd', ALERT_CONF_FILENAME),
+                    os.path.join('/etc', ALERT_CONF_FILENAME)
+                ]
+
+                for possible_smartd_path in smart_conf_file_possible_paths:
+                    if os.path.isfile(possible_smartd_path):
+                        self.smart_conf_file = possible_smartd_path
                         break
 
-        if len(self.smart_conf_file) == 0:
-            self.smart_conf_file = self.app_root + os.sep + SMARTD_CONF_FILENAME
-            self.set_defaults()
-        else:
-            if file_path is not None:
-                logger.debug("Found configuration file in [" + self.smart_conf_file + "].")
+                for possible_alert_path in alert_conf_file_possible_paths:
+                    if os.path.isfile(possible_alert_path):
+                        self.alert_conf_file = possible_alert_path
+                        break
 
-    def set_defaults(self):
+        if self.smart_conf_file is None:
+            self.smart_conf_file = os.path.join(self.app_root, SMARTD_CONF_FILENAME)
+            self.set_smartd_defaults()
+        else:
+            logger.debug('Found configuration file in [%s].' % self.smart_conf_file)
+
+        if self.alert_conf_file is None:
+            self.alert_conf_file = os.path.join(self.app_root, ALERT_CONF_FILENAME)
+            self.set_alert_defaults()
+        else:
+            logger.debug('Found alert config file in [%s].' % self.alert_conf_file)
+
+    def set_smartd_defaults(self):
         self.drive_list = ['DEVICESCAN']
         self.config_list = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
@@ -173,8 +214,7 @@ class Configuration:
         self.config_list.append('-m <nomailer>')
         self.config_list.append('-M exec "%s --alert"' % self.app_executable)
 
-        self.int_alert_config = ScrambledConfigParser()
-        self.int_alert_config.set_key(AES_ENCRYPTION_KEY)
+    def set_alert_defaults(self):
         self.int_alert_config.add_section('ALERT')
         self.int_alert_config['ALERT']['conf_file'] = os.path.join(
             os.path.dirname(self.smart_conf_file), '%s-alert.conf' % APP_NAME)
@@ -554,11 +594,11 @@ class MainGuiApp:
                             # Handle special case where . means all
                             if day_list[0] == '.':
                                 for day in range(0, 7):
-                                    self.window.Element('long_day' + self.days[day]).Update(True)
+                                    self.window.Element('long_day_' + self.days[day]).Update(True)
                             else:
                                 for day in day_list:
                                     if day.strip("[]").isdigit():
-                                        self.window.Element('long_day' + self.days[int(day.strip("[]")) - 1]).Update(True)
+                                        self.window.Element('long_day_' + self.days[int(day.strip("[]")) - 1]).Update(True)
                         if long_test.group(4):
                             self.window.Element('long_test_hour').Update(long_test.group(4))
 
@@ -571,11 +611,11 @@ class MainGuiApp:
                             # Handle special case where . means all
                             if day_list[0] == '.':
                                 for day in range(0, 7):
-                                    self.window.Element('short_day' + self.days[day]).Update(True)
+                                    self.window.Element('short_day_' + self.days[day]).Update(True)
                             else:
                                 for day in day_list:
                                     if day.strip("[]").isdigit():
-                                        self.window.Element('short_day' + self.days[int(day.strip("[]")) - 1]).Update(True)
+                                        self.window.Element('short_day_' + self.days[int(day.strip("[]")) - 1]).Update(True)
                         if short_test.group(4):
                             self.window.Element('short_test_hour').Update(short_test.group(4))
 
@@ -963,7 +1003,9 @@ class MainGuiApp:
                     logger.debug('Trace:', exc_info=True)
 
     def get_alert_gui_config(self, values):
+        print('before get_alert_gui_config')
         print(values) # TODO
+        print('after get_alert_gui_config')
 
 
 def system_service_handler(service, action):
@@ -1176,7 +1218,7 @@ def main(argv):
 # Improved answer I have done in https://stackoverflow.com/a/49759083/2635443
 if __name__ == '__main__':
     current_os_name = os.name
-    if ofunctions.is_admin() is not True:  # TODO # WIP
+    if ofunctions.is_admin() is True:  # TODO # WIP
         main(sys.argv)
     else:
         # UAC elevation code working for CPython, Nuitka >= 0.6.2, PyInstaller, PyExe, CxFreeze
