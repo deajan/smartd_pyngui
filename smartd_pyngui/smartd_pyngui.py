@@ -248,9 +248,10 @@ class Configuration:
                     raise Exception
                 return True  # TODO do we need this here
         except Exception as e:
-            logger.error("Cannot write to config file [%s].") % self.smart_conf_file
+            logger.error("Cannot write to config file [%s]." % self.smart_conf_file)
             logger.error(e)
             logger.debug('Trace', exc_info=True)
+            raise Exception
 
     def write_alert_config_file(self):
         if os.path.isdir(os.path.dirname(self.int_alert_config['ALERT']['conf_file'])):
@@ -337,7 +338,7 @@ class MainGuiApp:
             [sg.T('Schedule a long test at '), sg.InputCombo(self.hours, key='long_test_hour'), sg.T('H every')]]
         long_test_days = []
         for i in range(0, 7):
-            key = 'long_day' + self.days[i]
+            key = 'long_day_' + self.days[i]
             long_test_days.append(sg.Checkbox(self.days[i], key=key))
         long_test_days = [long_test_days]
         long_tests = [[sg.Frame('Scheduled long self-tests', [[sg.Column(long_test_time)],
@@ -350,7 +351,7 @@ class MainGuiApp:
             [sg.T('Schedule a short test at '), sg.InputCombo(self.hours, key='short_test_hour'), sg.T('H every')]]
         short_test_days = []
         for i in range(0, 7):
-            key = 'short_day' + self.days[i]
+            key = 'short_day_' + self.days[i]
             short_test_days.append(sg.Checkbox(self.days[i], key=key))
         short_test_days = [short_test_days]
         short_tests = [[sg.Frame('Scheduled short self-tests', [[sg.Column(short_test_time)],
@@ -783,7 +784,7 @@ class MainGuiApp:
                 present = False
 
                 for day in self.days:
-                    if values[test_type + 'Day' + day] is True:
+                    if values[test_type + '_day_' + day] is True:
                         regex += str(self.days.index(day) + 1)
                         present = True
                 regex += "]"
@@ -1147,8 +1148,6 @@ def main(argv):
     # sg.ChangeLookAndFeel('Reds')
     sg.SetOptions(element_padding=(0, 0), font=('Helvetica', 9), margins=(2, 1), icon=ICON_FILE)
 
-    print('my args are %s' % argv)
-
     config = Configuration()
 
     if len(argv) > 1:
@@ -1177,7 +1176,7 @@ def main(argv):
 # Improved answer I have done in https://stackoverflow.com/a/49759083/2635443
 if __name__ == '__main__':
     current_os_name = os.name
-    if ofunctions.is_admin() is True:  # TODO # WIP
+    if ofunctions.is_admin() is not True:  # TODO # WIP
         main(sys.argv)
     else:
         # UAC elevation code working for CPython, Nuitka >= 0.6.2, PyInstaller, PyExe, CxFreeze
