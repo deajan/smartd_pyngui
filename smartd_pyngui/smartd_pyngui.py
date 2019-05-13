@@ -230,43 +230,48 @@ class Configuration:
         self.int_alert_config['ALERT']['COMPRESS_LOGS'] = 'yes'
         self.int_alert_config['ALERT']['LOCAL_ALERT'] = 'no'
 
-    def read_smartd_conf_file(self):
+    def read_smartd_conf_file(self, conf_file=None):
+        if conf_file is None:
+            conf_file = self.smart_conf_file
+        """   
         if not os.path.isfile(self.smart_conf_file):
             msg = "No suitable [%s] file found, creating new file [%s]." % \
                   (SMARTD_CONF_FILENAME, self.smart_conf_file)
             logger.info(msg)
             sg.Popup(msg)
         else:
-            try:
-                with open(self.smart_conf_file, 'r') as fp:
+        """
+        try:
+            with open(conf_file, 'r') as fp:
 
-                    try:
-                        drive_list = []
-                        for line in fp.readlines():
-                            if not line[0] == "#" and line[0] != "\n" and line[0] != "\r" and line[0] != " ":
-                                config_list = line.split(' -')
-                                config_list = [config_list[0]] + ['-' + item for item in config_list[1:]]
-                                # Remove unnecessary blanks and newlines
-                                for i, item in enumerate(config_list):
-                                    config_list[i] = config_list[i].strip()
-                                drive_list.append(config_list[0])
-                                del config_list[0]
+                try:
+                    drive_list = []
+                    for line in fp.readlines():
+                        if not line[0] == "#" and line[0] != "\n" and line[0] != "\r" and line[0] != " ":
+                            config_list = line.split(' -')
+                            config_list = [config_list[0]] + ['-' + item for item in config_list[1:]]
+                            # Remove unnecessary blanks and newlines
+                            for i, item in enumerate(config_list):
+                                config_list[i] = config_list[i].strip()
+                            drive_list.append(config_list[0])
+                            del config_list[0]
 
-                        self.drive_list = drive_list
-                        self.config_list = config_list
-                        return True  # TODO: do we need return codes anymore
-                    except Exception:
-                        msg = "Cannot read in config file [%s]." % self.smart_conf_file
-                        logger.error(msg)
-                        logger.debug('Trace:', exc_info=True)
-                        sg.PopupError(msg)
-                        raise Exception
-            except:
-                msg = 'Cannot read from config file [%s].' % self.smart_conf_file
-                logger.error(msg)
-                logger.debug('Trace:', exc_info=True)
-                sg.PopupError(msg)
-                raise Exception
+                    self.drive_list = drive_list
+                    self.config_list = config_list
+                    self.smart_conf_file = conf_file
+                    return True
+                except Exception:
+                    msg = "Cannot read in config file [%s]." % conf_file
+                    logger.error(msg)
+                    logger.debug('Trace:', exc_info=True)
+                    sg.PopupError(msg)
+                    return False
+        except:
+            msg = 'Cannot read from config file [%s].' % conf_file
+            logger.error(msg)
+            logger.debug('Trace:', exc_info=True)
+            sg.PopupError(msg)
+            return False
 
     def write_smartd_conf_file(self):
         try:
@@ -300,14 +305,18 @@ class Configuration:
         else:
             msg = 'Cannot write [%s]. Directory maybe be missing.' % self.alert_conf_file
 
-    def read_alert_config_file(self):
-        if os.path.isfile(self.alert_conf_file):
-            self.int_alert_config.read_scrambled(self.alert_conf_file)
-            return
-        else:
-            msg = 'Cannot read [%s].' % self.alert_conf_file
+    def read_alert_config_file(self, conf_file=None):
+        if conf_file is None:
+            conf_file = self.alert_conf_file
+        try:
+            self.int_alert_config.read_scrambled(conf_file)
+            self.alert_conf_file = conf_file
+            return True
+        except:
+            msg = 'Cannot read [%s].' % conf_file
             logger.error(msg)
-            return msg
+            sg.PopupError(msg)
+            return False
 
 class MainGuiApp:
     def __init__(self, config):
@@ -359,6 +368,8 @@ class MainGuiApp:
         self.main_gui()
 
     def main_gui(self):
+        current_conf_file = None
+
         head_col = [[sg.Text(APP_DESCRIPTION)],
                     [sg.Frame('Configuration file', [[sg.InputText(self.config.smart_conf_file, key='smart_conf_file',
                                                                    enable_events=True, do_not_clear=True, size=(90, 1)),
@@ -519,6 +530,11 @@ class MainGuiApp:
 
         self.update_main_gui_config()
 
+        event, values = self.window.Read(timeout=1)
+        # Store current config filename
+        if current_conf_file is None:
+            current_conf_file = values['smart_conf_file']
+
         while True:
             event, values = self.window.Read(timeout=1000)  # Please try and use a timeout when possible
 
@@ -548,8 +564,12 @@ class MainGuiApp:
             elif event == 'use_system_mailer' or event == 'use_internal_alert' or event == 'use_external_script':
                 self.alert_switcher(values)
             elif event == 'smart_conf_file':
-                self.config.smart_conf_file = values['smart_conf_file']
-                self.update_main_gui_config()
+                ret = self.config.read_smartd_conf_file(values['smart_conf_file'])
+                if ret is True:
+                    self.update_main_gui_config()
+                    current_conf_file = values['smart_conf_file']
+                else:
+                    self.window.Element('smart_conf_file').Update(current_conf_file)
             elif event == 'manual_drive_list_tooltip':
                 sg.Popup(self.manual_drive_list_tooltip)
             elif event == 'Configure':
@@ -975,13 +995,13 @@ class MainGuiApp:
         # self.config.readErrorConfigFile()
         self.update_alert_gui_config()
 
+        event, values = self.alert_window.Read(timeout=1)
+        # Store initial conf file path before it may be modified
+        if current_conf_file is None:
+            current_conf_file = values['conf_file']
+
         while True:
             event, values = self.alert_window.Read(timeout=1000)  # Please try and use a timeout when possible
-
-            # Store initial conf file path before it may be modified
-            if current_conf_file is None:
-                current_conf_file = values['conf_file']
-
             # Event (buttons and enable_event enabled controls) handling
             if event is None:
                 break
@@ -994,35 +1014,36 @@ class MainGuiApp:
                 self.config.write_alert_config_file()
                 break
             elif event == 'conf_file':
-                ret = self.config.read_alert_config_file()
+                ret = self.config.read_alert_config_file(values['conf_file'])
                 if ret is True:
                     self.update_alert_gui_config()
                     current_conf_file = values['conf_file']
                 else:
-                    sg.PopupError(ret)
-                    self.alert_window.Element('conf_file').Update(current_conf_file) # TODO: does not work
+                    self.alert_window.Element('conf_file').Update(current_conf_file)
 
     def update_alert_gui_config(self):
         for key in self.config.int_alert_config['ALERT']:
             value = self.config.int_alert_config['ALERT'][key]
-            if key == 'MAIL_ALERT' or key == 'COMPRESS_LOGS' or key == 'UseSmtpAuth' or key == 'LOCAL_ALERT':
+            try:
                 if value == 'yes':
                     self.alert_window.Element(key).Update(True)
                 elif value == 'no':
                     self.alert_window.Element(key).Update(False)
-            else:
-                try:
-                    self.alert_window.Element(key).Update(self.config.int_alert_config['ALERT'][key])
-                except:
-                    msg = 'Cannot update [%s] value.' % key
-                    sg.PopupError(msg)
-                    logger.error(msg)
-                    logger.debug('Trace:', exc_info=True)
+                else:
+                    self.alert_window.Element(key).Update(value)
+            except:
+                msg = 'Cannot update [%s] value.' % key
+                sg.PopupError(msg)
+                logger.error(msg)
+                logger.debug('Trace:', exc_info=True)
 
     def get_alert_gui_config(self, values):
-        print('before get_alert_gui_config')
-        print(values) # TODO
-        print('after get_alert_gui_config')
+        for key, value in values.items():
+            if value == True:
+                value = 'yes'
+            elif value == False:
+                value = 'no'
+            self.config.int_alert_config['ALERT'][key] = value
 
 
 def system_service_handler(service, action):
