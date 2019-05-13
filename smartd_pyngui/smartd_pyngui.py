@@ -303,8 +303,11 @@ class Configuration:
     def read_alert_config_file(self):
         if os.path.isfile(self.alert_conf_file):
             self.int_alert_config.read_scrambled(self.alert_conf_file)
+            return
         else:
-            self.error('Cannot read [%s].' % self.alert_conf_file)
+            msg = 'Cannot read [%s].' % self.alert_conf_file
+            logger.error(msg)
+            return msg
 
 class MainGuiApp:
     def __init__(self, config):
@@ -568,6 +571,7 @@ class MainGuiApp:
 
     def spacer_tweakf(self, pixels=10):
         return [sg.T(' ' * pixels, font=('Helvetica', 1))]
+
 
     def update_main_gui_config(self):
         # Apply drive config
@@ -896,6 +900,8 @@ class MainGuiApp:
             sg.Popup('Successfully reloaded smartd service.', title='Info')
 
     def configure_internal_alerts(self):
+        current_conf_file = None
+
         head_col = [[sg.Text(APP_DESCRIPTION)],
                     [sg.Frame('Configuration file',
                               [[sg.InputText('', key='conf_file',
@@ -972,6 +978,10 @@ class MainGuiApp:
         while True:
             event, values = self.alert_window.Read(timeout=1000)  # Please try and use a timeout when possible
 
+            # Store initial conf file path before it may be modified
+            if current_conf_file is None:
+                current_conf_file = values['conf_file']
+
             # Event (buttons and enable_event enabled controls) handling
             if event is None:
                 break
@@ -984,8 +994,13 @@ class MainGuiApp:
                 self.config.write_alert_config_file()
                 break
             elif event == 'conf_file':
-                self.config.read_alert_config_file()
-                self.update_alert_gui_config()
+                ret = self.config.read_alert_config_file()
+                if ret is True:
+                    self.update_alert_gui_config()
+                    current_conf_file = values['conf_file']
+                else:
+                    sg.PopupError(ret)
+                    self.alert_window.Element('conf_file').Update(current_conf_file) # TODO: does not work
 
     def update_alert_gui_config(self):
         for key in self.config.int_alert_config['ALERT']:
@@ -1145,7 +1160,7 @@ def trigger_alert(config, mode=None): #  TODO write alerts
         subject = 'Smartmontools alert'
         try:
             warning_message = config.int_alert_config['ALERT']['WARNING_MESSAGE']
-        except TypeError:
+        except KeyError:
             warning_message = 'Default warning message not set !'
 
     if config.int_alert_config['ALERT']['MAIL_ALERT'] != 'no':
@@ -1156,17 +1171,17 @@ def trigger_alert(config, mode=None): #  TODO write alerts
 
         try:
             smtp_user = config.int_alert_config['ALERT']['SMTP_USER']
-        except:
+        except KeyError:
             smtp_user = None
 
         try:
             smtp_password = config.int_alert_config['ALERT']['SMTP_PASSWORD']
-        except:
+        except KeyError:
             smtp_password = None
 
         try:
             security = config.int_alert_config['ALERT']['SECURITY']
-        except:
+        except KeyError:
             security = None
 
         if len(src) > 0 and len(dst) > 0 and len(smtp_server) > 0 and len(smtp_port) > 0:
@@ -1217,7 +1232,6 @@ def main(argv):
 
     try:
         config.read_alert_config_file()
-        logger.debug(str(config.int_alert_config['ALERT']['MAIL_ALERT'])) # WIP
     except Exception:
         logger.info('Using default alert configuration.')
 
