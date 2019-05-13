@@ -35,7 +35,7 @@ if platform.system() == "Windows":
 
 APP_NAME = 'smartd_pyngui'  # Stands for smart daemon python native gui
 APP_VERSION = '0.7-dev'
-APP_BUILD = '2019042801'
+APP_BUILD = '2019051301'
 APP_DESCRIPTION = 'smartd v5.4+ configuration interface'
 CONTACT = 'ozy@netpower.fr - http://www.netpower.fr'
 COPYING = 'Written in 2012-2019'
