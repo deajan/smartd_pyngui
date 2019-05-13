@@ -243,13 +243,15 @@ class Configuration:
                 except Exception as e:
                     msg = "Cannot write data in config file [%s]." % self.smart_conf_file
                     logger.error(msg)
-                    logger.debug(e)
+                    logger.error(e)
+                    logger.debug('Trace', exc_info=True)
                     sg.PopupError(msg)
                     raise Exception
                 return True  # TODO do we need this here
-        except Exception:
+        except Exception as e:
             logger.error("Cannot write to config file [%s].") % self.smart_conf_file
-            logger.debug(e)
+            logger.error(e)
+            logger.debug('Trace', exc_info=True)
 
     def write_alert_config_file(self):
         if os.path.isdir(os.path.dirname(self.int_alert_config['ALERT']['conf_file'])):
@@ -341,7 +343,7 @@ class MainGuiApp:
         long_test_days = [long_test_days]
         long_tests = [[sg.Frame('Scheduled long self-tests', [[sg.Column(long_test_time)],
                                                               [sg.Column(long_test_days)],
-                                                              self.spacer_tweakF(343),
+                                                              self.spacer_tweakf(343),
                                                               ])]]
 
         # Short self-tests
@@ -354,7 +356,7 @@ class MainGuiApp:
         short_test_days = [short_test_days]
         short_tests = [[sg.Frame('Scheduled short self-tests', [[sg.Column(short_test_time)],
                                                                 [sg.Column(short_test_days)],
-                                                                self.spacer_tweakF(343),
+                                                                self.spacer_tweakf(343),
                                                                 ])]]
 
         # Attribute checks
@@ -454,6 +456,7 @@ class MainGuiApp:
                                     text_justification='left').Layout(layout)
         except Exception as e:
             logger.critical(e)
+            logger.debug('Trace', exc_info=True)
             sys.exit(1)
 
         # Finalize window before Update functions can work
@@ -521,7 +524,7 @@ class MainGuiApp:
             self.window.FindElement('external_script_path').Update(disabled=False)
 
 
-    def spacer_tweakF(self, pixels=10):
+    def spacer_tweakf(self, pixels=10):
         return [sg.T(' ' * pixels, font=('Helvetica', 1))]
 
     def update_main_gui_config(self):
@@ -605,14 +608,14 @@ class MainGuiApp:
                 if '-n' in item:
                     index = i
 
-                    energySaving = self.config.config_list[index].split(',')
+                    energy_savings = self.config.config_list[index].split(',')
                     for mode in self.energy_modes:
-                        if mode in energySaving[0]:
+                        if mode in energy_savings[0]:
                             self.window.FindElement('energy_mode').Update(mode)
 
-                    if energySaving[1].isdigit():
-                        self.window.FindElement('energy_skips').Update(energySaving[1])
-                    # if energySaving[1] == 'q':
+                    if energy_savings[1].isdigit():
+                        self.window.FindElement('energy_skips').Update(energy_savings[1])
+                    # if energy_savings[1] == 'q':
                     # TODO: handle q parameter
                     break
 
@@ -723,9 +726,10 @@ class MainGuiApp:
                         config_list.append(key)
 
         except KeyError:
-            if key:
+            try:
+                key
                 msg = "Bogus configuration in [%s]." % key
-            else:
+            except:
                 msg = "Bogus configuration in health parameters."
             logger.error(msg)
             logger.debug('Trace:', exc_info=True)
@@ -766,12 +770,17 @@ class MainGuiApp:
         except Exception as e:
             msg = 'Energy config error'
             logger.error(msg)
-            logger.debug(e)
+            logger.error(e)
+            logger.debug('Trace', exc_info=True)
             sg.PopupError(msg)
 
         # Transforms selftest checkboxes into long / short tests expression for smartd
         # Still not a good implementation after the Inno Setup ugly implementation
         try:
+            long_regex = None
+            short_regex = None
+            tests_regex = None
+            
             for test_type in self.test_types:
                 regex = "["
                 present = False
@@ -791,22 +800,22 @@ class MainGuiApp:
                 elif test_type == self.test_types[1] and present is True:
                     short_regex = "S/../../" + regex + "/" + str(short_test_hour)
 
-            if ('long_regex' in locals()) and ('short_regex' in locals()):
+            if long_regex is not None and short_regex is not None:
                 tests_regex = "-s (%s|%s)" % (long_regex, short_regex)
-            elif 'long_regex' in locals():
+            elif long_regex is not None:
                 tests_regex = "-s %s" % long_regex
-            elif 'short_regex' in locals():
+            elif short_regex is not None:
                 tests_regex = "-s %s" % short_regex
 
-            try:
+            if tests_regex is not None:
                 config_list.append(tests_regex)
-            except:
-                pass
+
 
         except Exception as e:
             msg = 'Test regex creation error'
             logger.error(msg)
-            logger.debug(e)
+            logger.error(e)
+            logger.debug('Trace', exc_info=True)
             sg.PopupError(msg)
 
         # TODO: -M can't exist without -m
@@ -839,7 +848,8 @@ class MainGuiApp:
         except Exception as e:
             msg = "Cannot restart [" + SMARTD_SERVICE_NAME + "]. Running as admin ? See logs for details."
             logger.error(msg)
-            logger.debug(e)
+            logger.error(e)
+            logger.debug('Trace', exc_info=True)
             sg.PopupError(msg)
             return False
         else:
@@ -911,7 +921,7 @@ class MainGuiApp:
                                     text_justification='left').Layout(layout)
         except Exception as e:
             logger.critical(e)
-            logger.debug('Trace:', exc_info=True)
+            logger.debug('Trace', exc_info=True)
             sys.exit(1)
 
         # Finalize window before Update functions can work
