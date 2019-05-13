@@ -108,7 +108,6 @@ class Configuration:
         try:
             self.app_executable = os.path.abspath(__file__)
             self.app_root = os.path.dirname(self.app_executable)
-
         except OSError:
             self.app_executable = os.path.abspath(sys.argv[0])
             self.app_root = os.path.dirname(self.app_executable)
@@ -464,13 +463,13 @@ class MainGuiApp:
 
         # Set defaults
         if platform.system() == 'Windows':
-            self.window.FindElement('use_external_script').Update(True)
-            self.window.FindElement('mail_addresses').Update(disabled=True)
-            self.window.FindElement('external_script_path').Update(disabled=False)
+            self.window.Element('use_external_script').Update(True)
+            self.window.Element('mail_addresses').Update(disabled=True)
+            self.window.Element('external_script_path').Update(disabled=False)
         else:
-            self.window.FindElement('use_system_mailer').Update(True)
-            self.window.FindElement('mail_addresses').Update(disabled=False)
-            self.window.FindElement('external_script_path').Update(disabled=False)
+            self.window.Element('use_system_mailer').Update(True)
+            self.window.Element('mail_addresses').Update(disabled=False)
+            self.window.Element('external_script_path').Update(disabled=False)
 
         self.update_main_gui_config()
 
@@ -497,9 +496,9 @@ class MainGuiApp:
                 else:
                     sg.Popup('Changes saved to configuration file')
             elif event == 'drive_auto':
-                self.window.FindElement('drive_list').Update(disabled=True, background_color=self.color_grey_disabled)
+                self.window.Element('drive_list').Update(disabled=True, background_color=self.color_grey_disabled)
             elif event == 'drive_manual':
-                self.window.FindElement('drive_list').Update(disabled=False, background_color=self.color_green_enabled)
+                self.window.Element('drive_list').Update(disabled=False, background_color=self.color_green_enabled)
             elif event == 'use_system_mailer' or event == 'use_internal_alert' or event == 'use_external_script':
                 self.alert_switcher(values)
             elif event == 'smart_conf_file':
@@ -514,14 +513,14 @@ class MainGuiApp:
 
     def alert_switcher(self, values):
         if values['use_system_mailer'] is True:
-            self.window.FindElement('mail_addresses').Update(disabled=False)
-            self.window.FindElement('external_script_path').Update(disabled=True)
+            self.window.Element('mail_addresses').Update(disabled=False)
+            self.window.Element('external_script_path').Update(disabled=True)
         if values['use_internal_alert'] is True:
-            self.window.FindElement('mail_addresses').Update(disabled=True)
-            self.window.FindElement('external_script_path').Update(disabled=True)
+            self.window.Element('mail_addresses').Update(disabled=True)
+            self.window.Element('external_script_path').Update(disabled=True)
         if values['use_external_script'] is True:
-            self.window.FindElement('mail_addresses').Update(disabled=True)
-            self.window.FindElement('external_script_path').Update(disabled=False)
+            self.window.Element('mail_addresses').Update(disabled=True)
+            self.window.Element('external_script_path').Update(disabled=False)
 
 
     def spacer_tweakf(self, pixels=10):
@@ -530,12 +529,12 @@ class MainGuiApp:
     def update_main_gui_config(self):
         # Apply drive config
         if self.config.drive_list == ['DEVICESCAN']:
-            self.window.FindElement('drive_auto').Update(True)
+            self.window.Element('drive_auto').Update(True)
         else:
-            self.window.FindElement('drive_manual').Update(True)
+            self.window.Element('drive_manual').Update(True)
             for drive in self.config.drive_list:
                 drives = drive + '\n'
-                self.window.FindElement('drive_list').Update(drives)
+                self.window.Element('drive_list').Update(drives)
 
         # Self test regex GUI setup
         if '-s' in '\t'.join(self.config.config_list):
@@ -554,13 +553,13 @@ class MainGuiApp:
                             # Handle special case where . means all
                             if day_list[0] == '.':
                                 for day in range(0, 7):
-                                    self.window.FindElement('long_day' + self.days[day]).Update(True)
+                                    self.window.Element('long_day' + self.days[day]).Update(True)
                             else:
                                 for day in day_list:
                                     if day.strip("[]").isdigit():
-                                        self.window.FindElement('long_day' + self.days[int(day.strip("[]")) - 1]).Update(True)
+                                        self.window.Element('long_day' + self.days[int(day.strip("[]")) - 1]).Update(True)
                         if long_test.group(4):
-                            self.window.FindElement('long_test_hour').Update(long_test.group(4))
+                            self.window.Element('long_test_hour').Update(long_test.group(4))
 
                     short_test = re.search('S/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[index])
                     if short_test:
@@ -571,36 +570,36 @@ class MainGuiApp:
                             # Handle special case where . means all
                             if day_list[0] == '.':
                                 for day in range(0, 7):
-                                    self.window.FindElement('short_day' + self.days[day]).Update(True)
+                                    self.window.Element('short_day' + self.days[day]).Update(True)
                             else:
                                 for day in day_list:
                                     if day.strip("[]").isdigit():
-                                        self.window.FindElement('short_day' + self.days[int(day.strip("[]")) - 1]).Update(True)
+                                        self.window.Element('short_day' + self.days[int(day.strip("[]")) - 1]).Update(True)
                         if short_test.group(4):
-                            self.window.FindElement('short_test_hour').Update(short_test.group(4))
+                            self.window.Element('short_test_hour').Update(short_test.group(4))
 
                     break
 
         # Attribute checks GUI setup
         for key, value in self.health_parameter_map:
             if key in self.config.config_list:
-                self.window.FindElement(key).Update(True)
+                self.window.Element(key).Update(True)
                 # Handle specific dependancy cases (-C 197+ depends on -C 197 and -U 198+ depends on -U 198)
                 if key == '-C 197+':
-                    self.window.FindElement('-C 197').Update(True)
+                    self.window.Element('-C 197').Update(True)
                 elif key == '-U 198+':
-                    self.window.FindElement('-U 198').Update(True)
+                    self.window.Element('-U 198').Update(True)
 
         # Handle temperature specific cases
         for i, item in enumerate(self.config.config_list):
             if re.match(r'^-W [0-9]{1,2},[0-9]{1,2},[0-9]{1,2}$', item):
-                self.window.FindElement('-W').Update(True)
-                self.window.FindElement('-I 194').Update(False)
+                self.window.Element('-W').Update(True)
+                self.window.Element('-I 194').Update(False)
                 temperatures = item.split(' ')[1]
                 temperatures = temperatures.split(',')
-                self.window.FindElement('temp_diff').Update(temperatures[0])
-                self.window.FindElement('temp_info').Update(temperatures[1])
-                self.window.FindElement('temp_crit').Update(temperatures[2])
+                self.window.Element('temp_diff').Update(temperatures[0])
+                self.window.Element('temp_info').Update(temperatures[1])
+                self.window.Element('temp_crit').Update(temperatures[2])
 
         # Energy saving GUI setup
         if '-n' in '\t'.join(self.config.config_list):
@@ -611,15 +610,13 @@ class MainGuiApp:
                     energy_savings = self.config.config_list[index].split(',')
                     for mode in self.energy_modes:
                         if mode in energy_savings[0]:
-                            self.window.FindElement('energy_mode').Update(mode)
+                            self.window.Element('energy_mode').Update(mode)
 
                     if energy_savings[1].isdigit():
-                        self.window.FindElement('energy_skips').Update(energy_savings[1])
+                        self.window.Element('energy_skips').Update(energy_savings[1])
                     # if energy_savings[1] == 'q':
                     # TODO: handle q parameter
                     break
-
-        # TODO: replace FindElement with Element
 
         #self.alert_switcher((['use_internal_alert'] = True))
         # Get alert options
@@ -648,27 +645,27 @@ class MainGuiApp:
                     index = i
 
                     mail_addresses = self.config.config_list[index].replace('-m ', '', 1)
-                    self.window.FindElement('use_system_mailer').Update(True)
+                    self.window.Element('use_system_mailer').Update(True)
                     if not mail_addresses == '<nomailer>':
-                        self.window.FindElement('mail_addresses').Update(mail_addresses, disabled=False)
-                    self.window.FindElement('external_script_path').Update(disabled=True)
+                        self.window.Element('mail_addresses').Update(mail_addresses, disabled=False)
+                    self.window.Element('external_script_path').Update(disabled=True)
                     break
         else:
-            self.window.FindElement('use_external_script').Update(True)
+            self.window.Element('use_external_script').Update(True)
 
         if '-M' in '\t'.join(self.config.config_list):
             for i, item in enumerate(self.config.config_list):
                 if '-M' in item:
                     index = i
 
-                    self.window.FindElement('use_external_script').Update(True)
-                    self.window.FindElement('mail_addresses').Update(disabled=True)
-                    self.window.FindElement('external_script_path').Update(
+                    self.window.Element('use_external_script').Update(True)
+                    self.window.Element('mail_addresses').Update(disabled=True)
+                    self.window.Element('external_script_path').Update(
                         self.config.config_list[index].replace('-M exec ', '', 1), disabled=False)
                     break
         else:
-            self.window.FindElement('use_system_mailer').Update(True)
-            self.window.FindElement('mail_addresses').Update(disabled=False)
+            self.window.Element('use_system_mailer').Update(True)
+            self.window.Element('mail_addresses').Update(disabled=False)
         """
 
 
@@ -780,7 +777,7 @@ class MainGuiApp:
             long_regex = None
             short_regex = None
             tests_regex = None
-            
+
             for test_type in self.test_types:
                 regex = "["
                 present = False
@@ -952,12 +949,12 @@ class MainGuiApp:
             value = self.config.int_alert_config['ALERT'][key]
             if key == 'MAIL_ALERT' or key == 'COMPRESS_LOGS' or key == 'UseSmtpAuth' or key == 'LOCAL_ALERT':
                 if value == 'yes':
-                    self.alert_window.FindElement(key).Update(True)
+                    self.alert_window.Element(key).Update(True)
                 elif value == 'no':
-                    self.alert_window.FindElement(key).Update(False)
+                    self.alert_window.Element(key).Update(False)
             else:
                 try:
-                    self.alert_window.FindElement(key).Update(self.config.int_alert_config['ALERT'][key])
+                    self.alert_window.Element(key).Update(self.config.int_alert_config['ALERT'][key])
                 except:
                     msg = 'Cannot update [%s] value.' % key
                     sg.PopupError(msg)
