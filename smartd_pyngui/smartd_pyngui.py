@@ -968,7 +968,7 @@ class MainGuiApp:
         self.update_alert_gui_config()
 
         while True:
-            event, values = self.window.Read(timeout=1000)  # Please try and use a timeout when possible
+            event, values = self.alert_window.Read(timeout=1000)  # Please try and use a timeout when possible
 
             # Event (buttons and enable_event enabled controls) handling
             if event is None:
