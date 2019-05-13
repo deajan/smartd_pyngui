@@ -59,7 +59,6 @@ ICON_FILE = b'R0lGODlhgACAAPcAADg8OTxCPSF6HSt/KDNrNTBzLTF8MD5EQEBMP0N2P0RKRUtRTE
 # c.generate_key()
 AES_ENCRYPTION_KEY = b'*\xc2\xc8\x93Ob\xa6-\xcfq5\x8e\xe9V7\xba\x17\xc0dq\xaa\xfa5\x92\xa1\xf86\x97\x1e\x1e\x00\x07'
 
-
 #### DEV NOTES ###############################################################################################
 
 # TODO: get smartd version in order to enable / disable various features
@@ -101,7 +100,8 @@ logger = ofunctions.logger_get_logger(LOG_FILE, debug=_DEBUG)
 class Configuration:
     smart_conf_file = ""
 
-    def __init__(self, file_path=None): # TODO investigate file_path usage here (which refers to both smartd and alert conf files)
+    def __init__(self,
+                 file_path=None):  # TODO investigate file_path usage here (which refers to both smartd and alert conf files)
         """Determine smartd configuration file path"""
 
         # TODO: app_root might be bad because of nuitka sys.argv[0] might not be the same
@@ -116,6 +116,9 @@ class Configuration:
         self.smart_conf_file = None
         self.alert_conf_file = None
 
+        self.config_list = None
+        self.drive_list = None
+
         self.int_alert_config = ScrambledConfigParser()
         self.int_alert_config.set_key(AES_ENCRYPTION_KEY)
 
@@ -128,12 +131,12 @@ class Configuration:
                 # Get program files environment
                 try:
                     program_files_x86 = os.environ["ProgramFiles(x86)"]
-                except:
+                except KeyError:
                     program_files_x86 = os.environ["ProgramFiles"]
 
                 try:
                     program_files_x64 = os.environ["ProgramW6432"]
-                except:
+                except KeyError:
                     program_files_x64 = os.environ["ProgramFiles"]
 
                 smart_conf_file_possible_paths = [
@@ -258,7 +261,7 @@ class Configuration:
                     logger.debug('Trace:', exc_info=True)
                     sg.PopupError(msg)
                     return False
-        except:
+        except IOError:
             msg = 'Cannot read from config file [%s].' % conf_file
             logger.error(msg)
             logger.debug('Trace:', exc_info=True)
@@ -309,6 +312,7 @@ class Configuration:
             logger.error(msg)
             sg.PopupError(msg)
             return False
+
 
 class MainGuiApp:
     def __init__(self, config):
@@ -456,13 +460,13 @@ class MainGuiApp:
         energy_options = [[sg.Frame('Energy saving', [[sg.Column(energy_text), sg.Column(energy_choices)],
                                                       self.spacer_tweak,
                                                       ])]]
-        
+
         # Email options
-        alerts = [[sg.Radio('Use %s internal alert system' % APP_NAME, group_id='alerts', key='use_internal_alert', default=True,
-                            enable_events=True), sg.Button('Configure')],
-                  [sg.Radio(
-                      'Use system mail command to send alerts to the following addresses (comma separated list) on Unixes',
-                      group_id='alerts', key='use_system_mailer', default=False, enable_events=True)],
+        alerts = [[sg.Radio('Use %s internal alert system' % APP_NAME, group_id='alerts', key='use_internal_alert',
+                            default=True, enable_events=True), sg.Button('Configure')],
+                  [sg.Radio('Use system mail command to send alerts to the following addresses'
+                            ' (comma separated list) on Unixes',
+                            group_id='alerts', key='use_system_mailer', default=False, enable_events=True)],
                   [sg.InputText(key='mail_addresses', size=(98, 1), do_not_clear=True)],
                   [sg.Radio('Use the following external alert handling script', group_id='alerts',
                             key='use_external_script', default=False, enable_events=True)],
@@ -580,10 +584,8 @@ class MainGuiApp:
             self.window.Element('mail_addresses').Update(disabled=True)
             self.window.Element('external_script_path').Update(disabled=False)
 
-
     def spacer_tweakf(self, pixels=10):
         return [sg.T(' ' * pixels, font=('Helvetica', 1))]
-
 
     def update_main_gui_config(self):
         # Apply drive config
@@ -616,7 +618,8 @@ class MainGuiApp:
                             else:
                                 for day in day_list:
                                     if day.strip("[]").isdigit():
-                                        self.window.Element('long_day_' + self.days[int(day.strip("[]")) - 1]).Update(True)
+                                        self.window.Element('long_day_' + self.days[int(day.strip("[]")) - 1]).Update(
+                                            True)
                         if long_test.group(4):
                             self.window.Element('long_test_hour').Update(long_test.group(4))
 
@@ -633,7 +636,8 @@ class MainGuiApp:
                             else:
                                 for day in day_list:
                                     if day.strip("[]").isdigit():
-                                        self.window.Element('short_day_' + self.days[int(day.strip("[]")) - 1]).Update(True)
+                                        self.window.Element('short_day_' + self.days[int(day.strip("[]")) - 1]).Update(
+                                            True)
                         if short_test.group(4):
                             self.window.Element('short_test_hour').Update(short_test.group(4))
 
@@ -677,7 +681,7 @@ class MainGuiApp:
                     # TODO: handle q parameter
                     break
 
-        #self.alert_switcher((['use_internal_alert'] = True))
+        # self.alert_switcher((['use_internal_alert'] = True))
         # Get alert options
         # -m <nomailer> -M exec PATH/smartd_pyngui = use internal alert
         # -m mail@addr.tld = use system mailer
@@ -688,7 +692,7 @@ class MainGuiApp:
         if '-m <nomailer> -M exec' in config_list_flat:
             # TODO Remove fuzzy detection here
             if APP_NAME in config_list_flat:
-                v = {'use_internal_alert' : True, 'use_system_mailer' : False, 'use_external_script' : False}
+                v = {'use_internal_alert': True, 'use_system_mailer': False, 'use_external_script': False}
             else:
                 v = {'use_internal_alert': False, 'use_system_mailer': False, 'use_external_script': True}
             self.alert_switcher(v)
@@ -726,7 +730,6 @@ class MainGuiApp:
             self.window.Element('use_system_mailer').Update(True)
             self.window.Element('mail_addresses').Update(disabled=False)
         """
-
 
     def get_main_gui_config(self, values):
         drive_list = []
@@ -974,9 +977,10 @@ class MainGuiApp:
 
         # Display the Window and get values
         try:
-            self.alert_window = sg.Window(APP_NAME + ' - ' + APP_VERSION + ' ' + APP_BUILD, icon=ICON_FILE, resizable=True,
-                                    size=(500, 600),
-                                    text_justification='left').Layout(layout)
+            self.alert_window = sg.Window(APP_NAME + ' - ' + APP_VERSION + ' ' + APP_BUILD, icon=ICON_FILE,
+                                          resizable=True,
+                                          size=(500, 600),
+                                          text_justification='left').Layout(layout)
         except Exception as e:
             logger.critical(e)
             logger.debug('Trace', exc_info=True)
@@ -1156,7 +1160,7 @@ def system_service_handler(service, action):
             return is_running
 
 
-def trigger_alert(config, mode=None): #  TODO write alerts
+def trigger_alert(config, mode=None):
 
     src = None
     dst = None
@@ -1199,9 +1203,11 @@ def trigger_alert(config, mode=None): #  TODO write alerts
 
         if len(src) > 0 and len(dst) > 0 and len(smtp_server) > 0 and len(smtp_port) > 0:
             try:
-                ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server, smtp_port=smtp_port,
-                                     smtp_user=smtp_user, smtp_password=smtp_password, security=security, subject=subject,
-                                     body=warning_message)
+                ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server,
+                                             smtp_port=smtp_port,
+                                             smtp_user=smtp_user, smtp_password=smtp_password, security=security,
+                                             subject=subject,
+                                             body=warning_message)
 
             # TODO Attachment is needed here (complete with smartctl output and env variables)
 
@@ -1255,7 +1261,7 @@ def main(argv):
             trigger_alert(config, 'test')
         elif argv[1] == '--installmail':
             trigger_alert(config, 'install')
-        sys.exit() # TODO define exit code
+        sys.exit()  # TODO define exit code
 
     try:
         MainGuiApp(config)
