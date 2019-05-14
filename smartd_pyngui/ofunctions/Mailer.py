@@ -13,7 +13,7 @@ import os
 
 def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp_server='localhost', smtp_port=25,
                smtp_user=None, smtp_password=None, security=None, subject=None, body=None, attachment=None,
-               html_enabled=False, bcc_mails=None, debug=False):
+               filename=None, html_enabled=False, bcc_mails=None, debug=False):
     """
 
     :param source_mail:
@@ -27,6 +27,7 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
     :param subject:
     :param body:
     :param attachment:
+    :param filename: If filename is given, we suppose attachment is inline binary data
     :param html_enabled:
     :param bcc_mails:
     :param debug:
@@ -70,23 +71,30 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
                 message.attach(MIMEText(body, "plain"))
 
         if attachment is not None:
-            with open(attachment, 'rb') as f_attachment:
-                # Add file as application/octet-stream
-                # Email client can usually download this automatically as attachment
-                part = MIMEBase("application", "octet-stream")
-                part.set_payload(f_attachment.read())
+            if filename is not None:
+                # Let's suppose we directly attach binary data
+                payload = attachment
+            else:
+                with open(attachment, 'rb') as f_attachment:
+                    payload = f_attachment.read()
+                    filename = os.path.basename(attachment)
 
-                # Encode file in ASCII characters to send by email
-                encoders.encode_base64(part)
+            # Add file as application/octet-stream
+            # Email client can usually download this automatically as attachment
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(payload)
 
-                # Add header as key/value pair to attachment part
-                part.add_header(
-                    "Content-Disposition",
-                    "attachment; filename=%s" % os.path.basename(attachment),
-                )
+            # Encode file in ASCII characters to send by email
+            encoders.encode_base64(part)
 
-                # Add attachment to message and convert message to string
-                message.attach(part)
+            # Add header as key/value pair to attachment part
+            part.add_header(
+                "Content-Disposition",
+                "attachment; filename=%s" % filename,
+            )
+
+            # Add attachment to message and convert message to string
+            message.attach(part)
 
         text = message.as_string()
 

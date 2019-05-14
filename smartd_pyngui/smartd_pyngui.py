@@ -13,6 +13,7 @@ import re  # Regex handling
 from time import sleep
 import subprocess  # system_service_handler
 from datetime import datetime
+import zlib
 import ofunctions as ofunctions
 import ofunctions.Mailer
 from scrambledconfigparser.scrambledconfigparser import ScrambledConfigParser
@@ -1226,15 +1227,25 @@ def trigger_alert(config, mode=None):
         except KeyError:
             security = None
 
+        # Try to run smartctl diag
+        try:
+            command = 'smartctl -a /dev/pd0'
+            exit_code, output = ofunctions.command_runner(command)
+            attachment = zlib.compress(output.encode('utf-8'))
+        except:
+            logger.error('Cannot get smartctl output.')
+            attachment = None
+
         if len(src) > 0 and len(dst) > 0 and len(smtp_server) > 0 and len(smtp_port) > 0:
             try:
                 ret = ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server,
                                                    smtp_port=smtp_port,
                                                    smtp_user=smtp_user, smtp_password=smtp_password, security=security,
-                                                   subject=subject,
+                                                   subject=subject, attachment=attachment, filename='log.zip',
                                                    body=warning_message, debug=True) # TODO remove debug True
 
-            # TODO Attachment is needed here (complete with smartctl output and env variables)
+            # TODO smartctl output and env variables is needed to decorate error messages and get valid smartctl output
+            # TODO see why we'd favor ret over exception
 
             except Exception as e:
                 msg = 'Cannot send email: %s' % e
@@ -1249,8 +1260,10 @@ def trigger_alert(config, mode=None):
 
     if config.int_alert_config['ALERT']['LOCAL_ALERT'] != 'no':
         if os.name == 'nt':
+            # Make a popup appear on all sessions including console
             command = 'wtssendmsg.exe -a "%s"' % warning_message
         else:
+            # Alert all users on terminal
             command = 'wall "%s"' % warning_message
         try:
             exit_code, output = ofunctions.command_runner(command)
