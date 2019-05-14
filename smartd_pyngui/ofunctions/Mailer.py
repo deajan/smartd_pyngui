@@ -76,7 +76,7 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
                 # Add header as key/value pair to attachment part
                 part.add_header(
                     "Content-Disposition",
-                    f"attachment; filename= {os.path.basename(attachment)}",
+                    "attachment; filename=%s" % os.path.basename(attachment),
                 )
 
                 # Add attachment to message and convert message to string
