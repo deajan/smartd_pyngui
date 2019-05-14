@@ -17,14 +17,14 @@ from logging.handlers import RotatingFileHandler
 
 import ofunctions.FileUtils as FileUtils
 
+__version__ = '0.1.2'
+__build__ = '2019042501'
+
 if os.name == 'nt':
     try:
         import ctypes
     except ImportError:
         raise ImportError('Cannot import ctypes for checking admin privileges on Windows platform.')
-
-_OFUNCTIONS_VERSION = '0.1.2'
-_OFUNCTIONS_BUILD = '2019042501'
 
 logger = logging.getLogger(__name__)
 
@@ -198,13 +198,8 @@ def command_runner(command, valid_exit_codes=[], timeout=30, shell=False, decode
         # decoder may be unicode_escape for dos commands or utf-8 for powershell
         output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=shell,
                                          timeout=timeout, universal_newlines=False)
-        try:
-            output = output.decode(decoder, errors='ignore')
-        except:
-            pass
-        # output = output.encode()
+        output = output.decode(decoder, errors='ignore')
     except subprocess.CalledProcessError as exc:
-        # logger.debug('Exception', exc_info=True)
         exit_code = exc.returncode
         try:
             output = exc.output
