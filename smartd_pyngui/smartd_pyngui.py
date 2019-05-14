@@ -121,6 +121,9 @@ class Configuration:
         self.int_alert_config = ScrambledConfigParser()
         self.int_alert_config.set_key(AES_ENCRYPTION_KEY)
 
+        self.set_smartd_defaults()
+        self.set_alert_defaults()
+
         if file_path is not None:
             self.smart_conf_file = file_path
             if not os.path.isfile(self.smart_conf_file):
@@ -197,13 +200,11 @@ class Configuration:
 
         if self.smart_conf_file is None:
             self.smart_conf_file = os.path.join(self.app_root, SMARTD_CONF_FILENAME)
-            self.set_smartd_defaults()
         else:
             logger.debug('Found configuration file in [%s].' % self.smart_conf_file)
 
         if self.alert_conf_file is None:
             self.alert_conf_file = os.path.join(self.app_root, ALERT_CONF_FILENAME)
-            self.set_alert_defaults()
         else:
             logger.debug('Found alert config file in [%s].' % self.alert_conf_file)
 
@@ -1045,26 +1046,20 @@ class MainGuiApp:
                     self.alert_window.Element('conf_file').Update(current_conf_file)
 
     def update_alert_gui_config(self):
-        try:
-            for key in self.config.int_alert_config['ALERT']:
-                value = self.config.int_alert_config['ALERT'][key]
-                try:
-                    if value == 'yes':
-                        self.alert_window.Element(key).Update(True)
-                    elif value == 'no':
-                        self.alert_window.Element(key).Update(False)
-                    else:
-                        self.alert_window.Element(key).Update(value)
-                except:
-                    msg = 'Cannot update [%s] value.' % key
-                    sg.PopupError(msg)
-                    logger.error(msg)
-                    logger.debug('Trace:', exc_info=True)
-        except KeyError as e:
-            msg = 'Cannot update GUI: %s' % e
-            logger.error(msg)
-            sg.PopupError(msg)
-            logger.debug('Trace:', exc_info=True)
+        for key in self.config.int_alert_config['ALERT']:
+            value = self.config.int_alert_config['ALERT'][key]
+            try:
+                if value == 'yes':
+                    self.alert_window.Element(key).Update(True)
+                elif value == 'no':
+                    self.alert_window.Element(key).Update(False)
+                else:
+                    self.alert_window.Element(key).Update(value)
+            except:
+                msg = 'Cannot update [%s] value.' % key
+                sg.PopupError(msg)
+                logger.error(msg)
+                logger.debug('Trace:', exc_info=True)
 
     def get_alert_gui_config(self, values):
         for key, value in values.items():
