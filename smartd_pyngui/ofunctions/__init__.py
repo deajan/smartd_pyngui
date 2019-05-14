@@ -17,8 +17,8 @@ from logging.handlers import RotatingFileHandler
 
 import ofunctions.FileUtils as FileUtils
 
-__version__ = '0.1.2'
-__build__ = '2019042501'
+__version__ = '0.1.3'
+__build__ = '2019051401'
 
 if os.name == 'nt':
     try:
@@ -211,24 +211,24 @@ def command_runner(command, valid_exit_codes=[], timeout=30, shell=False, decode
         except:
             output = "command_runner: Could not obtain output from command."
         if exit_code in valid_exit_codes:
-            logger.debug('Command [' + str(command) + '] returned with exit code [%s]. Command output was:' % exit_code)
+            logger.debug('Command [%s] returned with exit code [%s]. Command output was:' % (command, exit_code))
             if not output:
                 logger.debug(output)
             return exc.returncode, output
         else:
-            logger.error('Command [' + str(command) + '] failed with exit code [' + str(exc.returncode) + '].'
-                                                                    ' Command output was:')
+            logger.error('Command [%s] failed with exit code [%s]. Command output was:' %
+                         (command, exc.returncode))
             logger.error(output)
             return exc.returncode, output
     # OSError if not a valid executable
     except OSError as exc:
-        logger.error('Command [%s] returned:\n%s.' % (str(command), exc))
+        logger.error('Command [%s] returned:\n%s.' % (command, exc))
         return None, exc
     except subprocess.TimeoutExpired:
-        logger.error('Timeout [%s seconds] expired for command [%s] execution.' % (timeout, str(command)))
+        logger.error('Timeout [%s seconds] expired for command [%s] execution.' % (timeout, command))
         return None, 'Timeout of %s seconds expired.' % timeout
     else:
-        logger.debug('Command [%s] returned with exit code [0]. Command output was:' % str(command))
+        logger.debug('Command [%s] returned with exit code [0]. Command output was:' % command)
         if not output:
             logger.debug(output)
         return 0, output
@@ -262,8 +262,9 @@ class PowerShellRunner:
                     for ps_path in ps_paths:
                         if ps_path.endswith('Modules'):
                             ps_path = ps_path.strip('Modules')
-                        if os.path.isfile(ps_path + os.sep + interpreter_executable):
-                            self.powershell_interpreter = ps_path + os.sep + interpreter_executable
+                        possible_ps_path = os.path.join(ps_path, interpreter_executable)
+                        if os.path.isfile(possible_ps_path):
+                            self.powershell_interpreter = possible_ps_path
                             break
                 except KeyError:
                     pass
@@ -273,11 +274,12 @@ class PowerShellRunner:
             else:
                 raise OSError('Could not find any valid powershell interpreter')
 
-    def run_script(self, name, script, *args):
+    def run_script(self, script, *args):
         if self.powershell_interpreter is None:
             logger.debug('I do not have a powershell interpreter ready. I cannot cast that here.')
             return False
 
+        logger.debug('Running [%s]' % script)
         # Welcome in Powershell hell where -Command gives exit codes 0 or 1 and -File gives whatever your script did
         command = self.powershell_interpreter + ' -executionPolicy Bypass -NonInteractive -NoLogo -NoProfile -File ' \
                   + script + (' ' if len(args) > 0 else ' ') + ' '.join('"' + arg + '"' for arg in args)
