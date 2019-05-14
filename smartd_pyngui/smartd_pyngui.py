@@ -698,7 +698,6 @@ class MainGuiApp:
             v = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
         self.alert_switcher(v)
 
-        print(v)
         """
         if '-m' in '\t'.join(self.config.config_list):
             for i, item in enumerate(self.config.config_list):
@@ -1024,7 +1023,6 @@ class MainGuiApp:
         while True:
             event, values = self.alert_window.Read(timeout=1000)  # Please try and use a timeout when possible
             # Event (buttons and enable_event enabled controls) handling
-            print('ev %s ' % event)
             if event is None:
                 break
             if event == 'Save & trigger test alert':
