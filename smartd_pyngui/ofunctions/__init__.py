@@ -18,7 +18,7 @@ from logging.handlers import RotatingFileHandler
 import ofunctions.FileUtils as FileUtils
 
 __version__ = '0.1.3'
-__build__ = '2019051401'
+__build__ = '2019051402'
 
 if os.name == 'nt':
     try:
