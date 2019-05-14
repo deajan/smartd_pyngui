@@ -1347,7 +1347,7 @@ if __name__ == '__main__':
             arguments = sys.argv[1:]
             # current_dir = os.path.dirname(runner)
 
-            logger.debug('Running as Nuitka with runner [%s]' % runner)
+            logger.debug('Running elevator as Nuitka with runner [%s]' % runner)
             logger.debug('Arguments are %s' % arguments)
 
         # If a freezer is used (PyInstaller, cx_freeze, py2exe)
@@ -1356,7 +1356,7 @@ if __name__ == '__main__':
             arguments = sys.argv[1:]
             # current_dir = os.path.dirname(runner)
 
-            logger.debug('Running as Frozen with runner [%s]' % runner)
+            logger.debug('Running elevator as Frozen with runner [%s]' % runner)
             logger.debug('Arguments are %s' % arguments)
 
         # If standard interpreter CPython is used
@@ -1365,7 +1365,7 @@ if __name__ == '__main__':
             arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:]
             # current_dir = os.path.abspath(sys.argv[0])
 
-            logger.debug('Running as CPython with runner [%s]' % runner)
+            logger.debug('Running elevator as CPython with runner [%s]' % runner)
             logger.debug('Arguments are %s' % arguments)
 
         if os.name == 'nt':
