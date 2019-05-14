@@ -36,6 +36,12 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
     if subject is None:
         raise ValueError('No subject set')
 
+    # Fix for empty passed auth strings
+    if len(smtp_user) == 0:
+        smtp_user = None
+    if len(smtp_password) == 0:
+        smtp_password = None
+
     if destination_mails is None:
         raise ValueError('No destination mails set')
     elif type(destination_mails) is not list:
