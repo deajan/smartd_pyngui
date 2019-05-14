@@ -14,7 +14,7 @@ from time import sleep
 import subprocess  # system_service_handler
 from datetime import datetime
 import zlib
-import ofunctions as ofunctions
+import ofunctions
 import ofunctions.Mailer
 from scrambledconfigparser.scrambledconfigparser import ScrambledConfigParser
 
