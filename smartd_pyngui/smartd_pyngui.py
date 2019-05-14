@@ -45,7 +45,7 @@ LOG_FILE = APP_NAME + '.log'
 
 SMARTD_SERVICE_NAME = 'smartd'
 SMARTD_CONF_FILENAME = 'smartd.conf'
-ALERT_CONF_FILENAME = 'alerts.conf'
+ALERT_CONF_FILENAME = 'smartd_alerts.conf'
 
 DEFAULT_UNIX_PATH = '/etc/smartd'
 
@@ -1045,20 +1045,26 @@ class MainGuiApp:
                     self.alert_window.Element('conf_file').Update(current_conf_file)
 
     def update_alert_gui_config(self):
-        for key in self.config.int_alert_config['ALERT']:
-            value = self.config.int_alert_config['ALERT'][key]
-            try:
-                if value == 'yes':
-                    self.alert_window.Element(key).Update(True)
-                elif value == 'no':
-                    self.alert_window.Element(key).Update(False)
-                else:
-                    self.alert_window.Element(key).Update(value)
-            except:
-                msg = 'Cannot update [%s] value.' % key
-                sg.PopupError(msg)
-                logger.error(msg)
-                logger.debug('Trace:', exc_info=True)
+        try:
+            for key in self.config.int_alert_config['ALERT']:
+                value = self.config.int_alert_config['ALERT'][key]
+                try:
+                    if value == 'yes':
+                        self.alert_window.Element(key).Update(True)
+                    elif value == 'no':
+                        self.alert_window.Element(key).Update(False)
+                    else:
+                        self.alert_window.Element(key).Update(value)
+                except:
+                    msg = 'Cannot update [%s] value.' % key
+                    sg.PopupError(msg)
+                    logger.error(msg)
+                    logger.debug('Trace:', exc_info=True)
+        except KeyError as e:
+            msg = 'Cannot update GUI: %s' % e
+            logger.error(msg)
+            sg.PopupError(msg)
+            logger.debug('Trace:', exc_info=True)
 
     def get_alert_gui_config(self, values):
         for key, value in values.items():
