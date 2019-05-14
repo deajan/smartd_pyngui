@@ -10,7 +10,7 @@ import sys
 # import getopt
 import platform  # Detect OS
 import re  # Regex handling
-import time  # sleep command
+from time import sleep
 import subprocess  # system_service_handler
 from datetime import datetime
 import ofunctions
@@ -297,8 +297,12 @@ class Configuration:
         if os.path.isdir(os.path.dirname(self.alert_conf_file)):
             with open(self.alert_conf_file, 'wb') as fp:
                 self.int_alert_config.write_scrambled(fp)
+                return True
         else:
             msg = 'Cannot write [%s]. Directory maybe be missing.' % self.alert_conf_file
+            logger.error(msg)
+            sg.PopupError(msg)
+            return False
 
     def read_alert_config_file(self, conf_file=None):
         if conf_file is None:
@@ -368,14 +372,15 @@ class MainGuiApp:
 
         head_col = [[sg.Text(APP_DESCRIPTION)],
                     [sg.Frame('Configuration file', [[sg.InputText(self.config.smart_conf_file, key='smart_conf_file',
-                                                                   enable_events=True, do_not_clear=True, size=(90, 1)),
-                                                      self.button_spacer, sg.FileBrowse(target='smart_conf_file')],
+                                                                   enable_events=True, do_not_clear=True, size=(80, 1)),
+                                                      self.button_spacer, sg.FileBrowse(target='smart_conf_file'),
+                                                      self.button_spacer, sg.Button('Raw view', key='raw_view')],
                                                      self.spacer_tweak,
                                                      ])],
                     ]
 
-        drive_selection = [[sg.Radio('Automatic', group_id='driveDetection', key='drive_auto', enable_events=True)],
-                           [sg.Radio('Manual drive list', group_id='driveDetection', key='drive_manual',
+        drive_selection = [[sg.Radio('Automatic', group_id='drive_detection', key='drive_auto', enable_events=True)],
+                           [sg.Radio('Manual drive list', group_id='drive_detection', key='drive_manual',
                                      enable_events=True, tooltip=self.manual_drive_list_tooltip),
                             sg.Image(data=self.tooltip_image, key='manual_drive_list_tooltip', enable_events=True)]
                            ]
@@ -514,16 +519,6 @@ class MainGuiApp:
         # Finalize window before Update functions can work
         self.window.Finalize()
 
-        # Set defaults
-        if platform.system() == 'Windows':
-            self.window.Element('use_external_script').Update(True)
-            self.window.Element('mail_addresses').Update(disabled=True)
-            self.window.Element('external_script_path').Update(disabled=False)
-        else:
-            self.window.Element('use_system_mailer').Update(True)
-            self.window.Element('mail_addresses').Update(disabled=False)
-            self.window.Element('external_script_path').Update(disabled=False)
-
         self.update_main_gui_config()
 
         event, values = self.window.Read(timeout=1)
@@ -547,12 +542,11 @@ class MainGuiApp:
                 self.service_reload()
             elif event == 'Save changes':
                 try:
-                    self.get_main_gui_config(values)
-                    self.config.write_smartd_conf_file()
+                    if self.get_main_gui_config(values):
+                        self.config.write_smartd_conf_file()
+                        sg.Popup('Changes saved to configuration file')
                 except:
                     sg.PopupError('Cannot save configuration', icon=None)
-                else:
-                    sg.Popup('Changes saved to configuration file')
             elif event == 'drive_auto':
                 self.window.Element('drive_list').Update(disabled=True, background_color=self.color_grey_disabled)
             elif event == 'drive_manual':
@@ -570,17 +564,22 @@ class MainGuiApp:
                 sg.Popup(self.manual_drive_list_tooltip)
             elif event == 'Configure':
                 self.configure_internal_alerts()
+            elif event == 'raw_view':
+                self.raw_smartd_view()
 
         self.window.Close()
 
     def alert_switcher(self, values):
         if values['use_system_mailer'] is True:
+            self.window.Element('use_system_mailer').Update(True)
             self.window.Element('mail_addresses').Update(disabled=False)
             self.window.Element('external_script_path').Update(disabled=True)
         if values['use_internal_alert'] is True:
+            self.window.Element('use_internal_alert').Update(True)
             self.window.Element('mail_addresses').Update(disabled=True)
             self.window.Element('external_script_path').Update(disabled=True)
         if values['use_external_script'] is True:
+            self.window.Element('use_external_script').Update(True)
             self.window.Element('mail_addresses').Update(disabled=True)
             self.window.Element('external_script_path').Update(disabled=False)
 
@@ -695,12 +694,12 @@ class MainGuiApp:
                 v = {'use_internal_alert': True, 'use_system_mailer': False, 'use_external_script': False}
             else:
                 v = {'use_internal_alert': False, 'use_system_mailer': False, 'use_external_script': True}
-            self.alert_switcher(v)
-
         # else assume we use system mailer
         else:
             v = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
+        self.alert_switcher(v)
 
+        print(v)
         """
         if '-m' in '\t'.join(self.config.config_list):
             for i, item in enumerate(self.config.config_list):
@@ -794,6 +793,7 @@ class MainGuiApp:
             logger.debug('Trace:', exc_info=True)
             logger.debug(config_list)
             sg.PopupError(msg)
+            return False
 
         try:
             for key, description in self.temperature_parameter_map:
@@ -813,6 +813,7 @@ class MainGuiApp:
             logger.debug('Trace:', exc_info=True)
             logger.debug(config_list)
             sg.PopupError(msg)
+            return False
 
         try:
             energy_list = False
@@ -832,6 +833,7 @@ class MainGuiApp:
             logger.error(e)
             logger.debug('Trace', exc_info=True)
             sg.PopupError(msg)
+            return False
 
         # Transforms selftest checkboxes into long / short tests expression for smartd
         # Still not a good implementation after the Inno Setup ugly implementation
@@ -876,6 +878,7 @@ class MainGuiApp:
             logger.error(e)
             logger.debug('Trace', exc_info=True)
             sg.PopupError(msg)
+            return False
 
         # TODO: -M can't exist without -m
         # Mailer options
@@ -900,6 +903,7 @@ class MainGuiApp:
         logger.debug(config_list)
         self.config.drive_list = drive_list
         self.config.config_list = config_list
+        return True
 
     def service_reload(self):
         try:
@@ -913,6 +917,28 @@ class MainGuiApp:
             return False
         else:
             sg.Popup('Successfully reloaded smartd service.', title='Info')
+
+    def raw_smartd_view(self):
+        if os.path.isfile(self.config.smart_conf_file):
+            with open(self.config.smart_conf_file) as fp:
+                smartd_text = fp.read()
+
+            col = [[sg.Text(smartd_text, background_color='#FFFFFF')]]
+
+            layout = [[sg.Column(col, scrollable=True, size=(722, 550), background_color='#FFFFFF')],
+                      [sg.T(' ' * 70), sg.Button('Back')]
+                      ]
+
+            raw_view_window = sg.Window(APP_NAME + ' - ' + APP_VERSION + ' ' + APP_BUILD, icon=ICON_FILE,
+                                        resizable=True,
+                                        size=(500, 600),
+                                        text_justification='left', layout=layout)
+
+            while True:
+                event, values = raw_view_window.Read(timeout=1000)
+                if event == 'Back' or event is None:
+                    raw_view_window.Close()
+                    break
 
     def configure_internal_alerts(self):
         current_conf_file = None
@@ -972,7 +998,7 @@ class MainGuiApp:
 
         layout = [[sg.Column(full_layout, scrollable=True, vertical_scroll_only=True, size=(470, 550))],
                   [sg.T('')],
-                  [sg.T(' ' * 70), sg.Button('Save & trigger test alert'), self.button_spacer, sg.Button('Save & exit')]
+                  [sg.T(' ' * 70), sg.Button('Save & trigger test alert'), self.button_spacer, sg.Button('Save & go back')]
                   ]
 
         # Display the Window and get values
@@ -999,15 +1025,19 @@ class MainGuiApp:
         while True:
             event, values = self.alert_window.Read(timeout=1000)  # Please try and use a timeout when possible
             # Event (buttons and enable_event enabled controls) handling
+            print('ev %s ' % event)
             if event is None:
                 break
             if event == 'Save & trigger test alert':
                 self.get_alert_gui_config(values)
                 self.config.write_alert_config_file()
-                trigger_alert(self.config, 'test')
-            elif event == 'Save & exit':
+                ret = trigger_alert(self.config, 'test')
+                if ret is not True:
+                    sg.PopupError(ret)
+            elif event == 'Save & go back':
                 self.get_alert_gui_config(values)
-                self.config.write_alert_config_file()
+                if self.config.write_alert_config_file():
+                    self.alert_window.Close()
                 break
             elif event == 'conf_file':
                 ret = self.config.read_alert_config_file(values['conf_file'])
@@ -1095,7 +1125,7 @@ def system_service_handler(service, action):
 
         elif action == "restart":
             system_service_handler(service, 'stop')
-            time.sleep(1)
+            sleep(1) # arbitrary sleep between
             system_service_handler(service, 'start')
 
         elif action == "status":
@@ -1161,7 +1191,6 @@ def system_service_handler(service, action):
 
 
 def trigger_alert(config, mode=None):
-
     src = None
     dst = None
     smtp_server = None
@@ -1203,32 +1232,39 @@ def trigger_alert(config, mode=None):
 
         if len(src) > 0 and len(dst) > 0 and len(smtp_server) > 0 and len(smtp_port) > 0:
             try:
-                ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server,
-                                             smtp_port=smtp_port,
-                                             smtp_user=smtp_user, smtp_password=smtp_password, security=security,
-                                             subject=subject,
-                                             body=warning_message)
+                ret = ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server,
+                                                   smtp_port=smtp_port,
+                                                   smtp_user=smtp_user, smtp_password=smtp_password, security=security,
+                                                   subject=subject,
+                                                   body=warning_message)
 
             # TODO Attachment is needed here (complete with smartctl output and env variables)
 
             except Exception as e:
-                logger.error('Cannot send email: %s' % e)
+                msg = 'Cannot send email: %s' % e
+                logger.error(msg)
                 logger.debug('Trace', exc_info=True)
+                return msg
         else:
-            logger.critical('Cannot trigger mail alert. Essential parameters missing.')
+            msg = 'Cannot trigger mail alert. Essential parameters missing.'
+            logger.critical(msg)
             logger.critical('src: %s, dst: %s, smtp_server: %s, smtp_port; %s.' % (src, dst, smtp_server, smtp_port))
+            return msg
 
     if config.int_alert_config['ALERT']['LOCAL_ALERT'] != 'no':
         try:
             exit_code, output = ofunctions.command_runner('wtssendmsg.exe %s' % warning_message)
             if exit_code != 0:
-                logger.error('Running local alert failed with exit codd [%s].' % exit_code)
+                msg = 'Running local alert failed with exit code [%s].' % exit_code
+                logger.error(msg)
                 logger.error('Additional output: %s' % output)
+                return msg
         except Exception as e:
-            logger.error('Cannot run alert program: %s' % e)
+            msg = 'Cannot run alert program: %s' % e
+            logger.error(msg)
             logger.debug('Trace', exc_info=True)
-
-    sys.exit()
+            return msg
+    return True
 
 
 def main(argv):
@@ -1273,11 +1309,10 @@ def main(argv):
 
 # Improved answer I have done in https://stackoverflow.com/a/49759083/2635443
 if __name__ == '__main__':
-    current_os_name = os.name
     if ofunctions.is_admin() is True:  # TODO # WIP
         main(sys.argv)
     else:
-        # UAC elevation code working for CPython, Nuitka >= 0.6.2, PyInstaller, PyExe, CxFreeze
+        # UAC elevation / sudo code working for CPython, Nuitka >= 0.6.2, PyInstaller, PyExe, CxFreeze
 
         # Regardless of the runner (CPython, Nuitka or frozen CPython), sys.argv[0] is the relative path to script,
         # sys.argv[1] are the arguments
@@ -1335,15 +1370,12 @@ if __name__ == '__main__':
             logger.debug('Running as CPython with runner [%s]' % runner)
             logger.debug('Arguments are %s' % arguments)
 
-        if current_os_name == 'nt':
-            # Re-run the program with admin rights, don't use __file__ since frozen python won't know about it
-            # Use sys.argv[0] as script path and sys.argv[1:] as arguments, join them as lpstr, quoting each parameter
-            # or spaces in parameters will divide parameters
-            # lpParameters = sys.argv[0] + " "
-
+        if os.name == 'nt':
+            # Re-run the program with admin rights
+            # Join arguments and double quote each argument in order to prevent space separation
             arguments = ' '.join('"' + arg + '"' for arg in arguments)
             try:
-                # Method using ctypes which does not wait for executable to exit nor deos get exit code
+                # Old method using ctypes which does not wait for executable to exit nor deos get exit code
                 # See https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutew
                 # int 0 means SH_HIDE window, 1 is SW_SHOWNORMAL
                 # needs the followng imports
@@ -1351,7 +1383,7 @@ if __name__ == '__main__':
 
                 # ctypes.windll.shell32.ShellExecuteW(None, 'runas', runner, arguments, None, 0)
 
-                # Version with exit code that waits for executable to exit, needs the following imports
+                # Metthod with exit code that waits for executable to exit, needs the following imports
                 # import ctypes  # In order to perform UAC check
                 # import win32event  # monitor process
                 # import win32process  # monitor process
@@ -1370,7 +1402,7 @@ if __name__ == '__main__':
                 logger.info(e)
                 logger.debug('Trace', exc_info=True)
                 sys.exit(255)
-        # Linux and hopefully others
+        # Linux runner and hopefully Unixes
         else:
             command = 'sudo "%s"%s%s' % (
                 runner,
