@@ -212,7 +212,7 @@ def command_runner(command, valid_exit_codes=[], timeout=30, shell=False, decode
             output = "command_runner: Could not obtain output from command."
         if exit_code in valid_exit_codes:
             logger.debug('Command [%s] returned with exit code [%s]. Command output was:' % (command, exit_code))
-            if not output:
+            if output:
                 logger.debug(output)
             return exc.returncode, output
         else:
@@ -229,7 +229,7 @@ def command_runner(command, valid_exit_codes=[], timeout=30, shell=False, decode
         return None, 'Timeout of %s seconds expired.' % timeout
     else:
         logger.debug('Command [%s] returned with exit code [0]. Command output was:' % command)
-        if not output:
+        if output:
             logger.debug(output)
         return 0, output
 
