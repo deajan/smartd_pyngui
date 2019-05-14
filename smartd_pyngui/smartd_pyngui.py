@@ -1212,6 +1212,7 @@ def trigger_alert(config, mode=None):
         smtp_server = config.int_alert_config['ALERT']['SMTP_SERVER']
         smtp_port = config.int_alert_config['ALERT']['SMTP_PORT']
 
+
         try:
             smtp_user = config.int_alert_config['ALERT']['SMTP_USER']
         except KeyError:
@@ -1233,7 +1234,7 @@ def trigger_alert(config, mode=None):
                                                    smtp_port=smtp_port,
                                                    smtp_user=smtp_user, smtp_password=smtp_password, security=security,
                                                    subject=subject,
-                                                   body=warning_message)
+                                                   body=warning_message, debug=True) # TODO remove debug True
 
             # TODO Attachment is needed here (complete with smartctl output and env variables)
 
