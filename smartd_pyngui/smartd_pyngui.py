@@ -219,8 +219,6 @@ class Configuration:
 
     def set_alert_defaults(self):
         self.int_alert_config.add_section('ALERT')
-        self.int_alert_config['ALERT']['conf_file'] = os.path.join(
-            os.path.dirname(self.smart_conf_file), '%s-alert.conf' % APP_NAME)
         self.int_alert_config['ALERT']['WARNING_MESSAGE'] = 'Warning message goes here '  # TODO
         self.int_alert_config['ALERT']['MAIL_ALERT'] = 'yes'
         self.int_alert_config['ALERT']['SOURCE_MAIL'] = ''
