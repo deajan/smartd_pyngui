@@ -45,7 +45,7 @@ LOG_FILE = APP_NAME + '.log'
 
 SMARTD_SERVICE_NAME = 'smartd'
 SMARTD_CONF_FILENAME = 'smartd.conf'
-ALERT_CONF_FILENAME = 'smartd_alerts.conf'
+ALERT_CONF_FILENAME = APP_NAME + '_alerts.conf'
 
 DEFAULT_UNIX_PATH = '/etc/smartd'
 
