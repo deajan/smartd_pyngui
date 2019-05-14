@@ -117,22 +117,24 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
                         remote_server.login(smtp_user, smtp_password)
                     remote_server.sendmail(source_mail, destination_mails, text)
         except ConnectionRefusedError as e:
-            print(e)
+            return e
         except ConnectionAbortedError as e:
-            print(e)
+            return e
         except ConnectionResetError as e:
-            print(e)
+            return e
         except ConnectionError as e:
-            print(e)
+            return e
         except socket.gaierror as e:
-            print(e)
+            return e
         except smtplib.SMTPNotSupportedError as e:
             # Server does not support STARTTLS
-            print(e)
+            return e
         except ssl.SSLError as e:
-            print(e)
+            return e
         except smtplib.SMTPAuthenticationError as e:
-            print(e)
+            return e
 
         if not split_mails:
             break
+
+    return True
