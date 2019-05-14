@@ -13,7 +13,7 @@ import re  # Regex handling
 from time import sleep
 import subprocess  # system_service_handler
 from datetime import datetime
-import ofunctions
+import ofunctions as ofunctions
 import ofunctions.Mailer
 from scrambledconfigparser.scrambledconfigparser import ScrambledConfigParser
 
@@ -23,7 +23,7 @@ else:
     import PySimpleGUI.PySimpleGUI27 as sg
 
 # Module pywin32
-if platform.system() == "Windows":
+if os.name == 'nt':
     import win32serviceutil
     import ctypes  # In order to perform UAC check
     import win32event  # monitor process
@@ -1011,7 +1011,6 @@ class MainGuiApp:
 
         # Finalize window before Update functions can work
         self.alert_window.Finalize()
-        # self.config.readErrorConfigFile()
         self.update_alert_gui_config()
 
         event, values = self.alert_window.Read(timeout=1)
@@ -1080,7 +1079,7 @@ def system_service_handler(service, action):
     msg_success = "Action %s succeeded." % action
     msg_failure = "Action %s failed." % action
 
-    if platform.system() == "Windows":
+    if os.name == 'nt':
         # Returns list. If second entry = 4, service is running
         # TODO: handle other service states than 4
         service_status = win32serviceutil.QueryServiceStatus(service)
@@ -1265,7 +1264,9 @@ def trigger_alert(config, mode=None):
 
 
 def main(argv):
-    logger.info("Running on python " + platform.python_version() + " / " + str(platform.uname()))
+    logger.info('%s %s %s' % (APP_NAME, APP_VERSION, APP_BUILD))
+    logger.info(
+        'Running on %s %s/%s' % (' '.join(platform.uname()), platform.python_version(), ofunctions.python_arch()))
 
     if IS_STABLE is False:
         logger.warning("Warning: This is an unstable developpment version.")
@@ -1414,17 +1415,16 @@ if __name__ == '__main__':
                 # Don't specify timeout=X since we don't wan't the program to finish at any moment
                 output = subprocess.check_output(command, stderr=subprocess.STDOUT,
                                                  shell=True, universal_newlines=False)
-                try:
-                    output = output.decode('unicode_escape', errors='ignore')
-                except Exception as exc:
-                    pass
-                logger.debug('Child output: %s' % output)
+                output = output.decode('unicode_escape', errors='ignore')
+
+                logger.info('Child output: %s' % output)
                 sys.exit(0)
             except subprocess.CalledProcessError as exc:
                 exit_code = exc.returncode
-                logger.debug('Child exited with code: %s' % exit_code)
+                logger.error('Child exited with code: %s' % exit_code)
                 try:
-                    logger.debug('Child outout: %s' % exc.output)
+                    output = exc.output.decode('unicode_escape', errors='ignore')
+                    logger.error('Child outout: %s' % output)
                 except Exception as exc:
                     logger.debug(exc, exc_info=True)
                 sys.exit(exit_code)
