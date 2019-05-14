@@ -1248,8 +1248,12 @@ def trigger_alert(config, mode=None):
             return msg
 
     if config.int_alert_config['ALERT']['LOCAL_ALERT'] != 'no':
+        if os.name == 'nt':
+            command = 'wtssendmsg.exe -a "%s"' % warning_message
+        else:
+            command = 'wall "%s"' % warning_message
         try:
-            exit_code, output = ofunctions.command_runner('wtssendmsg.exe %s' % warning_message)
+            exit_code, output = ofunctions.command_runner(command)
             if exit_code != 0:
                 msg = 'Running local alert failed with exit code [%s].' % exit_code
                 logger.error(msg)
