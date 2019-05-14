@@ -100,11 +100,10 @@ logger = ofunctions.logger_get_logger(LOG_FILE, debug=_DEBUG)
 class Configuration:
     smart_conf_file = ""
 
-    def __init__(self,
-                 file_path=None):  # TODO investigate file_path usage here (which refers to both smartd and alert conf files)
+    def __init__(self, file_path=None):
+        # TODO investigate file_path usage here (which refers to both smartd and alert conf files)
         """Determine smartd configuration file path"""
 
-        # TODO: app_root might be bad because of nuitka sys.argv[0] might not be the same
         # __file__ variable doesn't exist in frozen py2exe mode, get app_root
         try:
             self.app_executable = os.path.abspath(__file__)
@@ -1378,7 +1377,7 @@ if __name__ == '__main__':
                 # Old method using ctypes which does not wait for executable to exit nor deos get exit code
                 # See https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutew
                 # int 0 means SH_HIDE window, 1 is SW_SHOWNORMAL
-                # needs the followng imports
+                # needs the following imports
                 # import ctypes
 
                 # ctypes.windll.shell32.ShellExecuteW(None, 'runas', runner, arguments, None, 0)
