@@ -59,6 +59,8 @@ if [ $result -ne 0 ]; then
     exit $result
 else
     echo "Nuitka compilation success. Trying to run built software."
+    ls "$BASE_DIR/smartd_pyngui"
+    ls "$BASE_DIR/smartd_pyngui/smartd_pyngui.dist"
     "$BASE_DIR/smartd_pyngui/smartd_pyngui.dist/smartd_pyngui" &
     WaitForIt $! 20
     result=$?
