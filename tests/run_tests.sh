@@ -48,6 +48,15 @@ fi
 py.test
 
 # Try nuitka compilation
+
+# First detect if running on pypy, if yes, do not compile with nuitka
+# Returns 0 if pypy is detected, 1 if not pypy detected
+python -c "import sys; sys.exit(not '__pypy__' in sys.builtin_module_names)"
+if [ $? -eq 0 ]; then
+    echo "Skipping nuitka tests on pypy"
+    exit 0
+fi
+
 echo "Nuitka info"
 python -m nuitka --version
 echo "Nuitka compilation"
