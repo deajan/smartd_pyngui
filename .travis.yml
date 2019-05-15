@@ -8,10 +8,10 @@ python:
     - 3.6
     - nightly
     - pypy3
-install: "pip install PySimpleGUI PySimpleGUI27 pytest nuitka"
+install: "pip install PySimpleGUI PySimpleGUI27 pytest nuitka pycryptodome"
 before_script:
     - "export DISPLAY=:99.0"
     - "sh -e /etc/init.d/xvfb start"
     - sleep 3
-script: ./run_tests.sh
+script: ./tests/run_tests.sh
 
