@@ -25,12 +25,12 @@ function WaitForIt {
 }
 
 cd "$BASE_DIR" || (echo "Cannot switch to directory [$BASE_DIR]." && exit 1)
-
+ls "$BASE_DIR"
 # Make sure we don't run on any forms of cache
 find "$BASE_DIR" -name "*.pyc" -or -name "__pycache__" | xargs -I {} rm -rf {}
 
 # First let's check if program can run
-"python $BASE_DIR/smartd_pyngui/smartd_pyngui.py" &
+"python $BASE_DIR/smartd_pyngui.py" &
 WaitForIt $! 20
 result=$?
 
@@ -45,7 +45,7 @@ fi
 py.test
 
 # Try nuitka compilation
-python -m nuitka --standalone "$BASE_DIR/smartd_pyngui/smartd_pyngui.py"
+python -m nuitka --standalone "$BASE_DIR/smartd_pyngui.py"
 result=$?
 
 if [ $result -ne 0 ]; then
@@ -53,7 +53,7 @@ if [ $result -ne 0 ]; then
     exit $result
 else
     echo "Nuitka compilation success. Trying to run built software."
-    "$BASE_DIR/smartd_pyngui/smartd_pyngui.dist/smartd_pyngui" &
+    "$BASE_DIR/smartd_pyngui.dist/smartd_pyngui" &
     WaitForIt $! 20
     result=$?
     echo "Nuitka compiled app exited with code [$result]."
