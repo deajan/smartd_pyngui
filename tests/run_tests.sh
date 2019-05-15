@@ -48,6 +48,9 @@ fi
 py.test
 
 # Try nuitka compilation
+echo "Nuitka info"
+python -m nuitka --version
+echo "Nuitka compilation"
 python -m nuitka --standalone "$BASE_DIR/smartd_pyngui/smartd_pyngui.py"
 result=$?
 
