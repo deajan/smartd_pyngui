@@ -1,6 +1,6 @@
 language: python
 python:
-    - 2.7
+    #- 2.7
     #- pypy
     #- 3.3
     - 3.4
@@ -17,10 +17,11 @@ matrix:
       dist: xenial
       sudo: required
 install:
-    - "sudo apt-get install scons chrpath"
+    - "sudo apt-get install scons chrpath xvfb"
     - "pip install pytest nuitka pycryptodomex"
 before_script:
+    - "Xvfb :99 &"
     - "export DISPLAY=:99.0"
-    - "sh -e /etc/init.d/xvfb start"
+    #- "sh -e /etc/init.d/xvfb start"
     - sleep 3
 script: ./tests/run_tests.sh
