@@ -971,7 +971,8 @@ class MainGuiApp:
                                                    [sg.Input(key='SMTP_PORT', size=(35, 1), do_not_clear=True)],
                                                    [sg.T('')],
                                                    [sg.Input(key='SMTP_USER', size=(35, 1), do_not_clear=True)],
-                                                   [sg.Input(key='SMTP_PASSWORD', size=(35, 1), do_not_clear=True)],
+                                                   [sg.Input(key='SMTP_PASSWORD', size=(35, 1), password_char='*',
+                                                             do_not_clear=True)],
                                                    [sg.InputCombo(['none', 'ssl', 'tls'], key='SECURITY')]
                                                ]),
 
