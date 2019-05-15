@@ -59,10 +59,14 @@ if [ $result -ne 0 ]; then
     exit $result
 else
     echo "Nuitka compilation success. Trying to run built software."
-    ls "$BASE_DIR/smartd_pyngui"
-    ls "$BASE_DIR/smartd_pyngui/smartd_pyngui.dist"
-    "$BASE_DIR/smartd_pyngui/smartd_pyngui.dist/smartd_pyngui" &
+    ls "$BASE_DIR"
+
+    "$BASE_DIR/smartd_pyngui.dist/smartd_pyngui" &
     WaitForIt $! 20
     result=$?
-    echo "Nuitka compiled app exited with code [$result]."
+    if [ $result -eq 127 ]; then
+        echo "Nuitka compiled app is not found. Exit code [$result]."
+    else
+        echo "Nuitka compiled app exited with code [$result]."
+    fi
 fi
