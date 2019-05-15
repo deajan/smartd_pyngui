@@ -25,12 +25,15 @@ function WaitForIt {
 }
 
 cd "$BASE_DIR" || (echo "Cannot switch to directory [$BASE_DIR]." && exit 1)
+echo "Basedir [$BASE_DIR] content:"
 ls "$BASE_DIR"
+echo "Basedir [$BASE_DIR/smartd_pyngui] content:"
+ls "$BASE_DIR/smartd_pyngui"
 # Make sure we don't run on any forms of cache
 find "$BASE_DIR" -name "*.pyc" -or -name "__pycache__" | xargs -I {} rm -rf {}
 
 # First let's check if program can run
-"python $BASE_DIR/smartd_pyngui/smartd_pyngui.py" &
+python "$BASE_DIR/smartd_pyngui/smartd_pyngui.py" &
 WaitForIt $! 20
 result=$?
 
