@@ -10,10 +10,11 @@ set_key(aes_key)
 read_scrambled()
 write_scrambled()
 
-v1.0
-
 (C) 2019 by Orsiris de Jong - www.netpower.fr
 """
+
+VERSION = '0.1.0'
+BUILD = 2019051401
 
 import configparser
 import os
