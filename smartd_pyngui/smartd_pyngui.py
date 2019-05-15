@@ -16,12 +16,9 @@ from datetime import datetime
 import zlib
 import ofunctions
 import ofunctions.Mailer
-from scrambledconfigparser.scrambledconfigparser import ScrambledConfigParser
+import scrambledconfigparser
 
-if sys.version_info[0] >= 3:
-    import PySimpleGUI.PySimpleGUI as sg
-else:
-    import PySimpleGUI.PySimpleGUI27 as sg
+import PySimpleGUI as sg
 
 # Module pywin32
 if os.name == 'nt':
@@ -119,7 +116,7 @@ class Configuration:
         self.config_list = None
         self.drive_list = None
 
-        self.int_alert_config = ScrambledConfigParser()
+        self.int_alert_config = scrambledconfigparser.ScrambledConfigParser()
         self.int_alert_config.set_key(AES_ENCRYPTION_KEY)
 
         self.set_smartd_defaults()
@@ -1312,7 +1309,7 @@ def main(argv):
             trigger_alert(config, 'test')
         elif argv[1] == '--installmail':
             trigger_alert(config, 'install')
-        sys.exit()  # TODO define exit code
+        sys.exit(0)  # TODO define exit code
 
     try:
         MainGuiApp(config)
