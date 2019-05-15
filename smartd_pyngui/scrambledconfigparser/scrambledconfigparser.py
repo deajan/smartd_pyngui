@@ -21,8 +21,8 @@ import os
 
 # Using pycryptodome (site-packages/Crypto)
 # Using pycryptodomex (site-packages/Cryptodome)
-from Crypto.Cipher import AES
-from Crypto.Random import get_random_bytes
+from Cryptodome.Cipher import AES
+from Cryptodome.Random import get_random_bytes
 
 class ScrambledConfigParser(configparser.ConfigParser):
     def __init__(self, *args, **kwargs):
