@@ -75,7 +75,11 @@ else
     result=$?
     if [ $result -eq 127 ]; then
         echo "Nuitka compiled app is not found. Exit code [$result]."
+        exit $result
+    elif [ $result -eq 137 ]; then
+        echo "App launched from shell with success. Exit code [$result] is kill signal."
     else
         echo "Nuitka compiled app exited with code [$result]."
+        exit $result
     fi
 fi
