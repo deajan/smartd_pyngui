@@ -18,6 +18,12 @@ import ofunctions
 import ofunctions.Mailer
 import scrambledconfigparser
 
+# On Windows nuitka distribs, set the tkinter library path below the distribution
+if sys.argv[0].endswith(".exe") or sys.argv[0].endswith(".EXE"):
+    os.environ['TCL_LIBRARY'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.sep + 'tcl'
+    os.environ['TK_LIBRARY'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.sep + 'tk'
+
+import tkinter
 import PySimpleGUI as sg
 
 # Module pywin32
@@ -1072,20 +1078,29 @@ def system_service_handler(service, action):
     Returns True if action succeeded or service is running, False if service does not run
     """
 
+    loops = 0 # Number of seconds elapsed since we started Windows service
+    max_wait = 6 # Number of seconds we'll wait for Windows service to start
+
     msg_already_running = "Service [%s] already running." % service
     msg_not_running = "Service [%s] is not running." % service
     msg_action = "Action %s for service [%s]." % (action, service)
     msg_success = "Action %s succeeded." % action
     msg_failure = "Action %s failed." % action
+    msg_too_long = "Action %s took more than %s seconds and seems to have failed." % (action, max_wait)
 
-    if os.name == 'nt':
+
+
+    def nt_service_status(service):
         # Returns list. If second entry = 4, service is running
         # TODO: handle other service states than 4
         service_status = win32serviceutil.QueryServiceStatus(service)
         if service_status[1] == 4:
-            is_running = True
+            return True
         else:
-            is_running = False
+            return False
+
+    if os.name == 'nt':
+        is_running = nt_service_status(service)
 
         if action == "start":
             if is_running:
@@ -1094,9 +1109,18 @@ def system_service_handler(service, action):
             else:
                 logger.info(msg_action)
                 try:
+                    # Does not provide return code, so we need to check manually
                     win32serviceutil.StartService(service)
-                    logger.info(msg_success)
-                    return True
+                    while not is_running and loops < max_wait:
+                        is_running = nt_service_status(service)
+                        if is_running:
+                            logger.info(msg_success)
+                            return True
+                        else:
+                            sleep(2)
+                            loops+=2
+                    logger.error(msg_too_long)
+                    raise Exception
                 except Exception:
                     logger.error(msg_failure)
                     logger.debug('Trace', exc_info=True)
