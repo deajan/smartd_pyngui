@@ -16,7 +16,7 @@ import time
 from logging.handlers import RotatingFileHandler
 
 VERSION = '0.1.3'
-BUILD = '2019051501'
+BUILD = '2019051601'
 
 import ofunctions.FileUtils as FileUtils
 
@@ -376,3 +376,10 @@ def is_windows_64bit(self):
     if 'PROCESSOR_ARCHITEW6432' in os.environ:
         return True
     return os.environ['PROCESSOR_ARCHITECTURE'].endswith('64')
+
+
+def is_mail_address(string):
+    if re.match(r'[^@\s]+@[^@\s]+\.[a-zA-Z0-9]+$', string):
+        return True
+    else:
+        return False
