@@ -372,7 +372,7 @@ def check_for_virtualization(product_id):
 
 # https: // stackoverflow.com / a / 12578715
 @property
-def is_windows_64bit(self):
+def is_windows_64bit():
     if 'PROCESSOR_ARCHITEW6432' in os.environ:
         return True
     return os.environ['PROCESSOR_ARCHITECTURE'].endswith('64')
