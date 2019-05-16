@@ -549,6 +549,7 @@ class MainGuiApp:
                         sg.Popup('Changes saved to configuration file')
                 except:
                     sg.PopupError('Cannot save configuration', icon=None)
+                    logger.debug('Trace', exc_info=True)
             elif event == 'drive_auto':
                 self.window.Element('drive_list').Update(disabled=True, background_color=self.color_grey_disabled)
             elif event == 'drive_manual':
@@ -688,48 +689,21 @@ class MainGuiApp:
         # -m mail@addr.tld = use system mailer
         # -m <nomailer> -M exec PATH/script = use external_script
 
-        config_list_flat = '\t'.join(self.config.config_list)
-        print(config_list_flat)
-        if '-m <nomailer> -M exec' in config_list_flat:
-            # TODO Remove fuzzy detection here
-            if APP_NAME in config_list_flat:
-                v = {'use_internal_alert': True, 'use_system_mailer': False, 'use_external_script': False}
-            else:
-                v = {'use_internal_alert': False, 'use_system_mailer': False, 'use_external_script': True}
-        # else assume we use system mailer
-        else:
-            v = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
+        # By default, let's assume we use the internal mailer
+        v = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
+        for index, value in enumerate(self.config.config_list):
+            if '-M exec' in value:
+                ext_script = self.config.config_list[index].replace('-M exec ', '', 1)
+                if APP_NAME in ext_script:
+                    v = {'use_internal_alert': True, 'use_system_mailer': False, 'use_external_script': False}
+                else:
+                    v = {'use_internal_alert': False, 'use_system_mailer': False, 'use_external_script': True}
+                    self.window.Element('external_script_path').Update(ext_script)
+            elif '-m' in value:
+                mail_addresses = self.config.config_list[index].replace('-m ', '', 1)
+                self.window.Element('mail_addresses').Update(mail_addresses)
+                v = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
         self.alert_switcher(v)
-
-        """
-        if '-m' in '\t'.join(self.config.config_list):
-            for i, item in enumerate(self.config.config_list):
-                if '-m' in item:
-                    index = i
-
-                    mail_addresses = self.config.config_list[index].replace('-m ', '', 1)
-                    self.window.Element('use_system_mailer').Update(True)
-                    if not mail_addresses == '<nomailer>':
-                        self.window.Element('mail_addresses').Update(mail_addresses, disabled=False)
-                    self.window.Element('external_script_path').Update(disabled=True)
-                    break
-        else:
-            self.window.Element('use_external_script').Update(True)
-
-        if '-M' in '\t'.join(self.config.config_list):
-            for i, item in enumerate(self.config.config_list):
-                if '-M' in item:
-                    index = i
-
-                    self.window.Element('use_external_script').Update(True)
-                    self.window.Element('mail_addresses').Update(disabled=True)
-                    self.window.Element('external_script_path').Update(
-                        self.config.config_list[index].replace('-M exec ', '', 1), disabled=False)
-                    break
-        else:
-            self.window.Element('use_system_mailer').Update(True)
-            self.window.Element('mail_addresses').Update(disabled=False)
-        """
 
     def get_main_gui_config(self, values):
         drive_list = []
@@ -894,11 +868,14 @@ class MainGuiApp:
                 raise AttributeError
         else:
             config_list.append('-m <nomailer>')
-            external_script_path = values['external_script_path']
-            external_script_path = external_script_path.strip('\"\'')
-            if not external_script_path == "":
-                external_script_path = '"%s"' % external_script_path
-                config_list.append('-M exec ' + external_script_path)
+            if values['use_internal_alert'] is True:
+                config_list.append('-M exec "%s"' % self.config.app_executable)
+            if values['use_external_script'] is True:
+                external_script_path = values['external_script_path']
+                if len(external_script_path) > 0:
+                    config_list.append('-M exec "%s"' % values['external_script_path'])
+                else:
+                    config_list.append('-M exec "%s"' % self.config.app_executable)
 
         logger.debug(drive_list)
         logger.debug(config_list)
