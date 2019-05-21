@@ -144,10 +144,16 @@ def file_creation_date(path_to_file):
 
 
 def remove_files_older_than(days, directory):
+    """
+    Is not recursive
+    :param days:
+    :param directory:
+    :return:
+    """
     if not os.path.isdir(directory):
         raise FileNotFoundError('[%s] not found.' % directory)
     else:
-        for root, _, filenames in os.walk(directory):
+        for _, _, filenames in os.walk(directory):
             for filename in filenames:
                 if os.path.isfile(filename) and (
                         ((time.time() - (days * 86400)) - file_creation_date(filename)) < 0):

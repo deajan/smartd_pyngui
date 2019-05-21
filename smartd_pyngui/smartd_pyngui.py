@@ -767,7 +767,7 @@ class MainGuiApp:
             return False
 
         try:
-            for key, description in self.temperature_parameter_map:
+            for key, _ in self.temperature_parameter_map:
                 if values[key]:
                     if key == '-W':
                         config_list.append(
@@ -879,7 +879,6 @@ class MainGuiApp:
         self.config.config_list = config_list
         return True
 
-    @staticmethod
     def service_reload(self):
         try:
             system_service_handler(SMARTD_SERVICE_NAME, "restart")
