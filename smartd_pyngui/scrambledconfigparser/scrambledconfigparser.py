@@ -120,6 +120,7 @@ class ScrambledConfigParser(configparser.ConfigParser):
             cipher = AES.new(self.aes_key, AES.MODE_EAX)
             ciphertext, tag = cipher.encrypt_and_digest(self.randomHeader + self.writeData.encode('utf-8')
                                                         + self.nullBytes + self.randomFooter)
-            [fp.write(x) for x in (cipher.nonce, tag, ciphertext)]
+            for x in (cipher.nonce, tag, ciphertext):
+                fp.write(x)
         except Exception as exc:
             raise ValueError('Cannot write AES data: %s' % exc)
