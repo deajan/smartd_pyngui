@@ -28,7 +28,7 @@ import PySimpleGUI as sg
 # Module pywin32
 if os.name == 'nt':
     import win32serviceutil
-    import ctypes  # In order to perform UAC check
+    # import ctypes  # In order to perform UAC check with ctypes.windll.shell32.ShellExecuteW()
     import win32event  # monitor process
     import win32process  # monitor process
     from win32com.shell.shell import ShellExecuteEx
@@ -312,7 +312,7 @@ class Configuration:
             self.int_alert_config.read_scrambled(conf_file)
             self.alert_conf_file = conf_file
             return True
-        except:
+        except Exception:
             msg = 'Cannot read [%s].' % conf_file
             logger.error(msg)
             sg.PopupError(msg)
