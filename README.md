@@ -1,3 +1,4 @@
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/5212dc9547ca4d6e9aafcea945f1fb93)](https://app.codacy.com/app/ozy/smartd_pyngui?utm_source=github.com&utm_medium=referral&utm_content=deajan/smartd_pyngui&utm_campaign=Badge_Grade_Dashboard)
 ## smartd-pyngui  [![Build Status](https://travis-ci.org/deajan/smartd_pyngui.svg?branch=master)](https://travis-ci.org/deajan/smartd_pyngui) [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 
