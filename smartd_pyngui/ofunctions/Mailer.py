@@ -45,7 +45,7 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
 
     if destination_mails is None:
         raise ValueError('No destination mails set')
-    elif type(destination_mails) is not list:
+    elif isinstance(list, destination_mails):
         # Make sure destination mails is a list
         destination_mails = destination_mails.split(' ')
 

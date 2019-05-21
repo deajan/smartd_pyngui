@@ -23,7 +23,6 @@ if sys.argv[0].endswith(".exe") or sys.argv[0].endswith(".EXE"):
     os.environ['TCL_LIBRARY'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.sep + 'tcl'
     os.environ['TK_LIBRARY'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.sep + 'tk'
 
-import tkinter
 import PySimpleGUI as sg
 
 # Module pywin32
@@ -248,7 +247,7 @@ class Configuration:
                             config_list = line.split(' -')
                             config_list = [config_list[0]] + ['-' + item for item in config_list[1:]]
                             # Remove unnecessary blanks and newlines
-                            for i, item in enumerate(config_list):
+                            for i, _ in enumerate(config_list):
                                 config_list[i] = config_list[i].strip()
                             drive_list.append(config_list[0])
                             del config_list[0]
@@ -586,6 +585,7 @@ class MainGuiApp:
             self.window.Element('mail_addresses').Update(disabled=True)
             self.window.Element('external_script_path').Update(disabled=False)
 
+    @staticmethod
     def spacer_tweakf(self, pixels=10):
         return [sg.T(' ' * pixels, font=('Helvetica', 1))]
 
@@ -738,7 +738,7 @@ class MainGuiApp:
 
         # smartd health parameters
         try:
-            for key, description in self.health_parameter_map:
+            for key, _ in self.health_parameter_map:
                 if values[key]:
                     # Handle dependancies
                     if key == '-C 197+':
@@ -759,11 +759,7 @@ class MainGuiApp:
                         config_list.append(key)
 
         except KeyError:
-            try:
-                key
-                msg = "Bogus configuration in [%s]." % key
-            except:
-                msg = "Bogus configuration in health parameters."
+            msg = "Bogus configuration in health parameters."
             logger.error(msg)
             logger.debug('Trace:', exc_info=True)
             logger.debug(config_list)
@@ -883,6 +879,7 @@ class MainGuiApp:
         self.config.config_list = config_list
         return True
 
+    @staticmethod
     def service_reload(self):
         try:
             system_service_handler(SMARTD_SERVICE_NAME, "restart")
@@ -913,7 +910,7 @@ class MainGuiApp:
                                         text_justification='left', layout=layout)
 
             while True:
-                event, values = raw_view_window.Read(timeout=1000)
+                event, _ = raw_view_window.Read(timeout=1000)
                 if event == 'Back' or event is None:
                     raw_view_window.Close()
                     break
@@ -1132,7 +1129,7 @@ def system_service_handler(service, action):
         # service_status = os.system("service " + service + " status > /dev/null 2>&1")
 
         # Valid exit code are 0 and 3 (because of systemctl using a service redirect)
-        service_status, service_output = ofunctions.command_runner('service %s status' % service)
+        service_status, _ = ofunctions.command_runner('service %s status' % service)
         if service_status == 0:
             is_running = True
         else:
@@ -1152,6 +1149,7 @@ def system_service_handler(service, action):
                         return True
                     else:
                         logger.error('Could not start service, code [%s].' % result)
+                        logger.error('Output: %s' % output)
                         raise Exception
                 except Exception:
                     logger.info(msg_failure)
@@ -1171,6 +1169,7 @@ def system_service_handler(service, action):
                         return True
                     else:
                         logger.error('Could not start service, code [%s].' % result)
+                        logger.error('Output: %s' % output)
                         raise Exception
                 except Exception:
                     logger.error(msg_failure)
@@ -1231,8 +1230,9 @@ def trigger_alert(config, mode=None):
             command = 'smartctl -a /dev/pd0'
             exit_code, output = ofunctions.command_runner(command)
             attachment = zlib.compress(output.encode('utf-8'))
-        except:
+        except Exception:
             logger.error('Cannot get smartctl output.')
+            logger.debug('Trace', exc_info=True)
             attachment = None
 
         if len(src) > 0 and len(dst) > 0 and len(smtp_server) > 0 and len(smtp_port) > 0:
@@ -1242,7 +1242,8 @@ def trigger_alert(config, mode=None):
                                                    smtp_user=smtp_user, smtp_password=smtp_password, security=security,
                                                    subject=subject, attachment=attachment, filename='log.zip',
                                                    body=warning_message, debug=True) # TODO remove debug True
-
+                # WIP
+                logger.info('Mailer result [%s].' % ret)
             # TODO smartctl output and env variables is needed to decorate error messages and get valid smartctl output
             # TODO see why we'd favor ret over exception
 

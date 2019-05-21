@@ -185,13 +185,14 @@ def bytes_to_string(bytes_to_convert):
         return False
 
 
-def command_runner(command, valid_exit_codes=[], timeout=30, shell=False, decoder='utf-8'):
+def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, decoder='utf-8'):
     """
     command_runner 2019011001
     Whenever we can, we need to avoid shell=True in order to preseve better security
     Runs system command, returns exit code and stdout/stderr output, and logs output on error
     valid_exit_codes is a list of codes that don't trigger an error
     """
+
     try:
         # universal_newlines=True makes netstat command fail under windows
         # timeout may not work on linux
@@ -208,9 +209,9 @@ def command_runner(command, valid_exit_codes=[], timeout=30, shell=False, decode
             except Exception as subexc:
                 logger.debug(subexc, exc_info=True)
                 logger.debug('Cannot properly decode error. Text is %s' % output)
-        except:
+        except Exception:
             output = "command_runner: Could not obtain output from command."
-        if exit_code in valid_exit_codes:
+        if exit_code in valid_exit_codes if valid_exit_codes is not None else []:
             logger.debug('Command [%s] returned with exit code [%s]. Command output was:' % (command, exit_code))
             if output:
                 logger.debug(output)
@@ -346,26 +347,26 @@ def check_for_virtualization(product_id):
     Xen adds 'Xen' to Win32_BIOS.Version (well hopefully)
     """
 
-    for id in product_id:
+    for p_id in product_id:
         # First try to detect oVirt before detecting Qemu/KVM
-        if re.search('oVirt', id, re.IGNORECASE):
+        if re.search('oVirt', p_id, re.IGNORECASE):
             return True, 'oVirt'
-        elif re.search('VBOX', id, re.IGNORECASE):
+        elif re.search('VBOX', p_id, re.IGNORECASE):
             return True, 'VirtualNox'
-        elif re.search('VMWare', id, re.IGNORECASE):
+        elif re.search('VMWare', p_id, re.IGNORECASE):
             return True, 'VMWare'
-        elif re.search('Hyper-V', id, re.IGNORECASE):
+        elif re.search('Hyper-V', p_id, re.IGNORECASE):
             return True, 'Hyper-V'
-        elif re.search('Xen', id, re.IGNORECASE):
+        elif re.search('Xen', p_id, re.IGNORECASE):
             return True, 'Xen'
-        elif re.search('KVM', id, re.IGNORECASE):
+        elif re.search('KVM', p_id, re.IGNORECASE):
             return True, 'KVM'
-        elif re.search('qemu', id, re.IGNORECASE):
+        elif re.search('qemu', p_id, re.IGNORECASE):
             return True, 'qemu'
-        elif re.search('bochs', id, re.IGNORECASE):
+        elif re.search('bochs', p_id, re.IGNORECASE):
             return True, 'bochs'
         # Fuzzy detection
-        elif re.search('VRTUAL', id, re.IGNORECASE):
+        elif re.search('VRTUAL', p_id, re.IGNORECASE):
             return True, 'HYPER-V'
     return False, 'Physical / Unknown hypervisor'
 

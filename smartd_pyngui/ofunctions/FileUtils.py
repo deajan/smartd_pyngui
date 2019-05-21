@@ -10,6 +10,8 @@ from fnmatch import fnmatch
 from contextlib import contextmanager
 from threading import Lock
 
+BUILD = '2019052101'
+
 file_lock_token = None
 
 
@@ -55,7 +57,7 @@ def glob_path_match(path, pattern_list):
     return any(fnmatch(os.path.basename(path), pattern) for pattern in pattern_list)
 
 
-def get_files_recursive(root, d_exclude_list=[], f_exclude_list=[], ext_exclude_list=[], primary_root=None):
+def get_files_recursive(root, d_exclude_list=None, f_exclude_list=None, ext_exclude_list=None, primary_root=None):
     """
     Walk a path to recursively find files
     Modified version of https://stackoverflow.com/a/24771959/2635443 that includes exclusion lists
@@ -68,8 +70,15 @@ def get_files_recursive(root, d_exclude_list=[], f_exclude_list=[], ext_exclude_
     :return: list of files found in path
     """
 
-    # Make sure we use a valid os separator for exclusion lists, this is done recursively :(
-    d_exclude_list = [os.path.normpath(d) for d in d_exclude_list]
+    if d_exclude_list is not None:
+        # Make sure we use a valid os separator for exclusion lists, this is done recursively :(
+        d_exclude_list = [os.path.normpath(d) for d in d_exclude_list]
+    else:
+        d_exclude_list = []
+    if f_exclude_list is None:
+        f_exclude_list = []
+    if ext_exclude_list is None:
+        ext_exclude_list = []
 
     files = [os.path.join(root, f) for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))
              and not glob_path_match(f, f_exclude_list) and os.path.splitext(f)[1] not in ext_exclude_list]
@@ -138,7 +147,7 @@ def remove_files_older_than(days, directory):
     if not os.path.isdir(directory):
         raise FileNotFoundError('[%s] not found.' % directory)
     else:
-        for root, dirnames, filenames in os.walk(directory):
+        for root, _, filenames in os.walk(directory):
             for filename in filenames:
                 if os.path.isfile(filename) and (
                         ((time.time() - (days * 86400)) - file_creation_date(filename)) < 0):
