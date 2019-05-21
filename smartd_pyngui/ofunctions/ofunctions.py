@@ -193,6 +193,9 @@ def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, deco
     valid_exit_codes is a list of codes that don't trigger an error
     """
 
+    if valid_exit_codes is None:
+        valid_exit_codes = []
+
     try:
         # universal_newlines=True makes netstat command fail under windows
         # timeout may not work on linux
@@ -211,7 +214,7 @@ def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, deco
                 logger.debug('Cannot properly decode error. Text is %s' % output)
         except Exception:
             output = "command_runner: Could not obtain output from command."
-        if exit_code in valid_exit_codes if valid_exit_codes is not None else []:
+        if exit_code in valid_exit_codes:
             logger.debug('Command [%s] returned with exit code [%s]. Command output was:' % (command, exit_code))
             if output:
                 logger.debug(output)
