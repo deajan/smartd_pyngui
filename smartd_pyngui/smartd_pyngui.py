@@ -1478,7 +1478,7 @@ if __name__ == '__main__':
                     # TODO command to command_runner ?
                     # Don't specify timeout=X since we don't wan't the program to finish at any moment
                     output = subprocess.check_output(command, stderr=subprocess.STDOUT,
-                                                     shell=True, universal_newlines=False)
+                                                     shell=False, universal_newlines=False)
                     output = output.decode('unicode_escape', errors='ignore')
 
                     logger.info('Child output: %s' % output)
