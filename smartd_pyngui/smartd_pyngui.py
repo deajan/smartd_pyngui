@@ -549,10 +549,20 @@ class MainGuiApp:
         while True:
             event, values = self.window.Read(timeout=1000)  # Please try and use a timeout when possible
 
-            # Event (buttons and enable_event enabled controls) hancling
+            # Event (buttons and enable_event enabled controls) handling
             if event is None:
+                action = sg.Popup('Do you want to save settings and reload service', custom_text=('Yes', 'No'))
+                if action == 'Yes':
+                    try:
+                        if self.get_main_gui_config(values):
+                            self.config.write_smartd_conf_file()
+                            sg.Popup('Changes saved to configuration file')
+                            self.service_reload()
+                    except:
+                        sg.PopupError('Cannot save configuration', icon=None)
+                        logger.debug('Trace', exc_info=True)
                 break
-            if event == 'Exit':  # if user closed the window using X or clicked Quit button
+            if event == 'Exit':                      # Todo ask service reload and save question
                 action = sg.Popup('Are you sure ?', custom_text=('Cancel', 'Exit'), icon=None)
                 if action == 'Cancel':
                     pass
@@ -596,7 +606,6 @@ class MainGuiApp:
                     self.window.Element('ssd_tab').Update(disabled=False)
                     self.window.Element('nvme_tab').Update(disabled=False)
                     self.window.Element('removal_tab').Update(disabled=False)
-
         self.window.Close()
 
     def alert_switcher(self, values):
