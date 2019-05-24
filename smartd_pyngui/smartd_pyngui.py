@@ -1457,29 +1457,38 @@ if __name__ == '__main__':
                 sys.exit(255)
         # Linux runner and hopefully Unixes
         else:
-            command = 'sudo "%s"%s%s' % (
-                runner,
-                (' ' if len(arguments) > 0 else ''),
-                ' '.join('"%s"' % argument for argument in arguments)
-            )
-            # TODO : test new command generation
-            # command = 'sudo ' + runner + (' ' if len(arguments) > 0 else '') + \
-            #          ' '.join('"' + argument + '"' for argument in arguments)
-            try:
-                # TODO command to command_runner ?
-                # Don't specify timeout=X since we don't wan't the program to finish at any moment
-                output = subprocess.check_output(command, stderr=subprocess.STDOUT,
-                                                 shell=False, universal_newlines=False)
-                output = output.decode('unicode_escape', errors='ignore')
-
-                logger.info('Child output: %s' % output)
-                sys.exit(0)
-            except subprocess.CalledProcessError as exc:
-                exit_code = exc.returncode
-                logger.error('Child exited with code: %s' % exit_code)
+            # Search for sudo executable in order to avoid using shell=True with subprocess
+            sudo_path = None
+            for path in os.environ['PATH']:
+                if os.path.isfile(os.path.join(path, 'sudo')):
+                    sudo_path = os.path.join(path, 'sudo')
+            if sudo_path is None:
+                logger.error('Cannot find sudo executable. Cannot elevate privileges. Trying to run wihtout.')
+                main(sys.argv)
+            else:
+                command = 'sudo "%s"%s%s' % (
+                    runner,
+                    (' ' if len(arguments) > 0 else ''),
+                    ' '.join('"%s"' % argument for argument in arguments)
+                )
+                # TODO : test new command generation
+                # command = 'sudo ' + runner + (' ' if len(arguments) > 0 else '') + \
+                #          ' '.join('"' + argument + '"' for argument in arguments)
                 try:
-                    output = exc.output.decode('unicode_escape', errors='ignore')
-                    logger.error('Child outout: %s' % output)
-                except Exception as exc:
-                    logger.debug(exc, exc_info=True)
-                sys.exit(exit_code)
+                    # TODO command to command_runner ?
+                    # Don't specify timeout=X since we don't wan't the program to finish at any moment
+                    output = subprocess.check_output(command, stderr=subprocess.STDOUT,
+                                                     shell=True, universal_newlines=False)
+                    output = output.decode('unicode_escape', errors='ignore')
+
+                    logger.info('Child output: %s' % output)
+                    sys.exit(0)
+                except subprocess.CalledProcessError as exc:
+                    exit_code = exc.returncode
+                    logger.error('Child exited with code: %s' % exit_code)
+                    try:
+                        output = exc.output.decode('unicode_escape', errors='ignore')
+                        logger.error('Child outout: %s' % output)
+                    except Exception as exc:
+                        logger.debug(exc, exc_info=True)
+                    sys.exit(exit_code)
