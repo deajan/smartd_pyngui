@@ -37,8 +37,8 @@ if os.name == 'nt':
 # BASIC FUNCTIONS & DEFINITIONS #########################################################################
 
 APP_NAME = 'smartd_pyngui'  # Stands for smart daemon python native gui
-APP_VERSION = '0.7-dev'
-APP_BUILD = '2019051301'
+APP_VERSION = '0.8-dev'
+APP_BUILD = '2019052401'
 APP_DESCRIPTION = 'smartd v5.4+ configuration interface'
 CONTACT = 'ozy@netpower.fr - http://www.netpower.fr'
 COPYING = 'Written in 2012-2019'
@@ -489,15 +489,34 @@ class MainGuiApp:
                                                                   self.spacer_tweak,
                                                                   ])]]
 
-        full_layout = [
-            [sg.Column(head_col)],
+        # TODO: use different key prefixes when generating this
+        tab_layout = [
             [sg.Column(drive_config)],
             [sg.Column(long_tests), sg.Column(short_tests)],
             [sg.Column(attributes_check)],
             [sg.Column(temperature_options)],
             [sg.Column(energy_options)],
-            [sg.Column(alert_options)],
             [sg.Column(sup_options)],
+        ]
+
+        tabs = [
+            [sg.Tab('Spinning disks', tab_layout)],
+            [sg.Tab('SSD disks', tab_layout, key='ssd_tab')],
+            [sg.Tab('NVME disks', tab_layout, key='nvme_tab')],
+            [sg.Tab('Removal disks', tab_layout, key='removal_tab')],
+        ]
+
+        tabgroup = [[sg.Frame('Disk type options',
+            [
+                [sg.Checkbox('Use spinning disk settings for all disk types', default=False, key='global_settings',
+                             enable_events=True)],
+                [sg.TabGroup(tabs, pad=0)]
+            ])]]
+
+        full_layout = [
+            [sg.Column(head_col)],
+            [sg.Column(alert_options)],
+            [sg.Column(tabgroup)],
         ]
 
         layout = [[sg.Column(full_layout, scrollable=True, vertical_scroll_only=True, size=(722, 550))],
@@ -568,6 +587,15 @@ class MainGuiApp:
                 self.configure_internal_alerts()
             elif event == 'raw_view':
                 self.raw_smartd_view()
+            elif event == 'global_settings':
+                if values['global_settings']:
+                    self.window.Element('ssd_tab').Update(disabled=True)
+                    self.window.Element('nvme_tab').Update(disabled=True)
+                    self.window.Element('removal_tab').Update(disabled=True)
+                else:
+                    self.window.Element('ssd_tab').Update(disabled=False)
+                    self.window.Element('nvme_tab').Update(disabled=False)
+                    self.window.Element('removal_tab').Update(disabled=False)
 
         self.window.Close()
 
