@@ -500,10 +500,10 @@ class MainGuiApp:
         ]
 
         tabs = [
-            [sg.Tab('Spinning disks', tab_layout)],
-            [sg.Tab('SSD disks', tab_layout, key='ssd_tab')],
-            [sg.Tab('NVME disks', tab_layout, key='nvme_tab')],
-            [sg.Tab('Removal disks', tab_layout, key='removal_tab')],
+            [sg.Tab('Spinning disk drives', tab_layout)],
+            [sg.Tab('SSD drives', tab_layout, key='ssd_tab')],
+            [sg.Tab('NVME drives', tab_layout, key='nvme_tab')],
+            [sg.Tab('Removable drives', tab_layout, key='removal_tab')],
         ]
 
         tabgroup = [[sg.Frame('Disk type options',
