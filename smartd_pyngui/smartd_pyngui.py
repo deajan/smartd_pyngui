@@ -916,7 +916,8 @@ class MainGuiApp:
         self.config.config_list = config_list
         return True
 
-    def service_reload(self):
+    @staticmethod
+    def service_reload():
         try:
             system_service_handler(SMARTD_SERVICE_NAME, "restart")
         except Exception as e:
@@ -1067,7 +1068,7 @@ class MainGuiApp:
                     self.alert_window.Element(key).Update(False)
                 else:
                     self.alert_window.Element(key).Update(value)
-            except:
+            except KeyError:
                 msg = 'Cannot update [%s] value.' % key
                 sg.PopupError(msg)
                 logger.error(msg)
@@ -1388,8 +1389,9 @@ if __name__ == '__main__':
         # Nuitka < 0.6.2 can be detected in sloppy ways, ie if not sys.argv[0].endswith('.py') or len(sys.path) < 3
         # Let's assume this will only be compiled with newer nuitka, and remove sloppy detections
         try:
-            __nuitka_binary_dir
-            is_nuitka_compiled = True
+            # Actual if statement not needed, but keeps code inspectors more happy
+            if __nuitka_binary_dir is not None:
+                is_nuitka_compiled = True
         except NameError:
             is_nuitka_compiled = False
 
@@ -1467,7 +1469,7 @@ if __name__ == '__main__':
                 # TODO command to command_runner ?
                 # Don't specify timeout=X since we don't wan't the program to finish at any moment
                 output = subprocess.check_output(command, stderr=subprocess.STDOUT,
-                                                 shell=True, universal_newlines=False)
+                                                 shell=False, universal_newlines=False)
                 output = output.decode('unicode_escape', errors='ignore')
 
                 logger.info('Child output: %s' % output)
