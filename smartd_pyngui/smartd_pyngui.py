@@ -558,7 +558,7 @@ class MainGuiApp:
                             self.config.write_smartd_conf_file()
                             sg.Popup('Changes saved to configuration file')
                             self.service_reload()
-                    except:
+                    except Exception:
                         sg.PopupError('Cannot save configuration', icon=None)
                         logger.debug('Trace', exc_info=True)
                 break
@@ -575,7 +575,7 @@ class MainGuiApp:
                     if self.get_main_gui_config(values):
                         self.config.write_smartd_conf_file()
                         sg.Popup('Changes saved to configuration file')
-                except:
+                except Exception:
                     sg.PopupError('Cannot save configuration', icon=None)
                     logger.debug('Trace', exc_info=True)
             elif event == 'drive_auto':
