@@ -350,7 +350,7 @@ class MainGuiApp:
                                      ]
 
         self.temperature_parameter_map = [('-I 194', 'Ignore temperature changes'),
-                                          ('-W', 'Report temperature changes with values :'),
+                                          ('-W', 'Report temperature changes (set values)'),
                                           ]
 
         self.manual_drive_list_tooltip = 'Even under Windows, smartd addresses disks as \'/dev/sda /dev/sdb ... /dev/sdX\'\n' \
@@ -361,6 +361,7 @@ class MainGuiApp:
                                          '/dev/sda\n' \
                                          '/dev/sdb\n' \
                                          '/dev/csmi0,1'
+  
         self.tooltip_image = b'R0lGODlhFAAUAPcAAAAAAAEBAQICAgMDAwYGBggICAkJCQoKCgwMDA4ODhAQEBQUFBoaGhsbGxwcHB0dHR4eHh8fHyAgICEhISIiIiMjIyYmJioqKi4uLjIyMjU1NTg4OEVFRU5OTk9PT1BQUFJSUlRUVFVVVVZWVldXV1hYWGBgYGdnZ2lpaWpqamxsbG1tbW5ubm9vb3h4eAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAAP8ALAAAAAAUABQAAAifAP8JHPhvBAUDBiiMIMhwYIQAECNChNBQYAuJGCOuYHgxo8eNAzEeINgBo0OT/y4wELhB4gOBGQUKCBBS4j8SGQssgCjQBcYQFTxCxCBwAkYJBoQOEMghI4GkHkH8y+CRAAWhJlgIjSBCqNcAUj0qEAgV5YOMKgSWyNigpkQNAi3EHJgiYwIEGU8wRPEVot6KDYSurEjwg4MBAxx4qBgQADs=\n'
 
         self.spacer_tweak = [sg.T(' ' * 702, font=('Helvetica', 1))]
@@ -379,93 +380,6 @@ class MainGuiApp:
                                                      self.spacer_tweak,
                                                      ])],
                     ]
-
-        drive_selection = [[sg.Radio('Automatic', group_id='drive_detection', key='drive_auto', enable_events=True)],
-                           [sg.Radio('Manual drive list', group_id='drive_detection', key='drive_manual',
-                                     enable_events=True, tooltip=self.manual_drive_list_tooltip),
-                            sg.Image(data=self.tooltip_image, key='manual_drive_list_tooltip', enable_events=True)]
-                           ]
-        drive_list = [[sg.Multiline(size=(60, 6), key='drive_list', do_not_clear=True,
-                                    background_color=self.color_grey_disabled)]]
-        drive_config = [[sg.Frame('Drive detection', [[sg.Column(drive_selection), sg.Column(drive_list)],
-                                                      self.spacer_tweak,
-                                                      ])]]
-
-        # Long self-tests
-        long_test_time = [
-            [sg.T('Schedule a long test at '), sg.InputCombo(self.hours, key='long_test_hour'), sg.T('H every')]]
-        long_test_days = []
-        for i in range(0, 7):
-            key = 'long_day_' + self.days[i]
-            long_test_days.append(sg.Checkbox(self.days[i], key=key))
-        long_test_days = [long_test_days]
-        long_tests = [[sg.Frame('Scheduled long self-tests', [[sg.Column(long_test_time)],
-                                                              [sg.Column(long_test_days)],
-                                                              self.spacer_tweakf(343),
-                                                              ])]]
-
-        # Short self-tests
-        short_test_time = [
-            [sg.T('Schedule a short test at '), sg.InputCombo(self.hours, key='short_test_hour'), sg.T('H every')]]
-        short_test_days = []
-        for i in range(0, 7):
-            key = 'short_day_' + self.days[i]
-            short_test_days.append(sg.Checkbox(self.days[i], key=key))
-        short_test_days = [short_test_days]
-        short_tests = [[sg.Frame('Scheduled short self-tests', [[sg.Column(short_test_time)],
-                                                                [sg.Column(short_test_days)],
-                                                                self.spacer_tweakf(343),
-                                                                ])]]
-
-        # Attribute checks
-        count = 1
-        smart_health_col1 = []
-        smart_health_col2 = []
-        for key, description in self.health_parameter_map:
-            if count <= 6:
-                smart_health_col1.append([sg.Checkbox(description + ' (' + key + ')', key=key)])
-            else:
-                smart_health_col2.append([sg.Checkbox(description + ' (' + key + ')', key=key)])
-            count += 1
-
-        attributes_check = [
-            [sg.Frame('Smart health Checks', [[sg.Column(smart_health_col1), sg.Column(smart_health_col2)],
-                                              self.spacer_tweak,
-                                              ])]]
-
-        # Temperature checks
-        temperature_check = []
-        for key, description in self.temperature_parameter_map:
-            temperature_check.append([sg.Checkbox(description + ' (' + key + ')', key=key)])
-        temperature_options = [[sg.Frame('Temperature settings',
-                                         [[sg.Column(temperature_check),
-                                           sg.Column([[sg.T('Temperature difference since last report')],
-                                                      [sg.T('Info log when temperature reached')],
-                                                      [sg.T('Critical log when temperature reached')],
-                                                      ]),
-                                           sg.Column([[sg.InputCombo(self.temperature_celsius, key='temp_diff',
-                                                                     default_value='20')],
-                                                      [sg.InputCombo(self.temperature_celsius, key='temp_info',
-                                                                     default_value='55')],
-                                                      [sg.InputCombo(self.temperature_celsius, key='temp_crit',
-                                                                     default_value='60')],
-                                                      ]),
-
-                                           ],
-                                          self.spacer_tweak,
-                                          ],
-                                         )]]
-
-        # Energy saving
-        energy_text = [[sg.T('Do not execute smart tests when disk energy mode is ')],
-                       [sg.T('Force test execution after N skipped tests')],
-                       ]
-        energy_choices = [[sg.InputCombo(self.energy_modes, key='energy_mode')],
-                          [sg.InputCombo(["%.1d" % i for i in range(8)], key='energy_skips')],
-                          ]
-        energy_options = [[sg.Frame('Energy saving', [[sg.Column(energy_text), sg.Column(energy_choices)],
-                                                      self.spacer_tweak,
-                                                      ])]]
 
         # Email options
         alerts = [[sg.Radio('Use %s internal alert system' % APP_NAME, group_id='alerts', key='use_internal_alert',
@@ -489,21 +403,112 @@ class MainGuiApp:
                                                                   self.spacer_tweak,
                                                                   ])]]
 
-        # TODO: use different key prefixes when generating this
-        tab_layout = [
-            [sg.Column(drive_config)],
-            [sg.Column(long_tests), sg.Column(short_tests)],
-            [sg.Column(attributes_check)],
-            [sg.Column(temperature_options)],
-            [sg.Column(energy_options)],
-            [sg.Column(sup_options)],
-        ]
+        # Tab content
+        tab_layout = {}
+        for tab_type in ['__spinning', '__ssd', '__nvme', '__removal']:
+            drive_selection = [[sg.Radio('Automatic', group_id='drive_detection' + tab_type, key='drive_auto' + tab_type, enable_events=True)],
+                               [sg.Radio('Manual drive list', group_id='drive_detection' + tab_type, key='drive_manual' + tab_type,
+                                         enable_events=True, tooltip=self.manual_drive_list_tooltip),
+                                sg.Image(data=self.tooltip_image, key='manual_drive_list_tooltip', enable_events=True)]
+                               ]
+            drive_list = [[sg.Multiline(size=(60, 6), key='drive_list' + tab_type, do_not_clear=True,
+                                        background_color=self.color_grey_disabled)]]
+            drive_config = [[sg.Frame('Drive detection', [[sg.Column(drive_selection), sg.Column(drive_list)],
+                                                          self.spacer_tweak,
+                                                          ])]]
+
+            # Long self-tests
+            long_test_time = [
+                [sg.T('Schedule a long test at '), sg.InputCombo(self.hours, key='long_test_hour' + tab_type), sg.T('H every')]]
+            long_test_days = []
+            for i in range(0, 7):
+                key = 'long_day_' + self.days[i] + tab_type
+                long_test_days.append(sg.Checkbox(self.days[i], key=key))
+            long_test_days = [long_test_days]
+            long_tests = [[sg.Frame('Scheduled long self-tests', [[sg.Column(long_test_time)],
+                                                                  [sg.Column(long_test_days)],
+                                                                  self.spacer_tweakf(343),
+                                                                  ])]]
+
+            # Short self-tests
+            short_test_time = [
+                [sg.T('Schedule a short test at '), sg.InputCombo(self.hours, key='short_test_hour' + tab_type), sg.T('H every')]]
+            short_test_days = []
+            for i in range(0, 7):
+                key = 'short_day_' + self.days[i] + tab_type
+                short_test_days.append(sg.Checkbox(self.days[i], key=key))
+            short_test_days = [short_test_days]
+            short_tests = [[sg.Frame('Scheduled short self-tests', [[sg.Column(short_test_time)],
+                                                                    [sg.Column(short_test_days)],
+                                                                    self.spacer_tweakf(343),
+                                                                    ])]]
+
+            # Attribute checks
+            count = 1
+            smart_health_col1 = []
+            smart_health_col2 = []
+            for key, description in self.health_parameter_map:
+                if count <= 6:
+                    smart_health_col1.append([sg.Checkbox(description + ' (' + key + ')', key=key + tab_type)])
+                else:
+                    smart_health_col2.append([sg.Checkbox(description + ' (' + key + ')', key=key + tab_type)])
+                count += 1
+
+            attributes_check = [
+                [sg.Frame('Smart health Checks', [[sg.Column(smart_health_col1), sg.Column(smart_health_col2)],
+                                                  self.spacer_tweak,
+                                                  ])]]
+
+            # Temperature checks
+            temperature_check = []
+            for key, description in self.temperature_parameter_map:
+                temperature_check.append([sg.Checkbox(description + ' (' + key + ')', key=key + tab_type)])
+            temperature_options = [[sg.Frame('Temperature settings',
+                                             [[sg.Column(temperature_check),
+                                               sg.Column([[sg.T('Temperature difference since last report')],
+                                                          [sg.T('Info log when temperature reached')],
+                                                          [sg.T('Critical log when temperature reached')],
+                                                          ]),
+                                               sg.Column([[sg.InputCombo(self.temperature_celsius, key='temp_diff' + tab_type,
+                                                                         default_value='20')],
+                                                          [sg.InputCombo(self.temperature_celsius, key='temp_info' + tab_type,
+                                                                         default_value='55')],
+                                                          [sg.InputCombo(self.temperature_celsius, key='temp_crit' + tab_type,
+                                                                         default_value='60')],
+                                                          ]),
+
+                                               ],
+                                              self.spacer_tweak,
+                                              ],
+                                             )]]
+
+            # Energy saving
+            energy_text = [[sg.T('Do not execute smart tests when disk energy mode is ')],
+                           [sg.T('Force test execution after N skipped tests')],
+                           ]
+            energy_choices = [[sg.InputCombo(self.energy_modes, key='energy_mode' + tab_type)],
+                              [sg.InputCombo(["%.1d" % i for i in range(8)], key='energy_skips' + tab_type)],
+                              ]
+            energy_options = [[sg.Frame('Energy saving', [[sg.Column(energy_text), sg.Column(energy_choices)],
+                                                          self.spacer_tweak,
+                                                          ])]]
+
+
+            # TODO: use different key prefixes when generating this
+            tab_layout[tab_type] = [
+                [sg.Column(drive_config)],
+                [sg.Column(long_tests), sg.Column(short_tests)],
+                [sg.Column(attributes_check)],
+                [sg.Column(temperature_options)],
+                [sg.Column(energy_options)],
+                [sg.Column(sup_options)],
+            ]
 
         tabs = [
-            [sg.Tab('Spinning disk drives', tab_layout)],
-            [sg.Tab('SSD drives', tab_layout, key='ssd_tab')],
-            [sg.Tab('NVME drives', tab_layout, key='nvme_tab')],
-            [sg.Tab('Removable drives', tab_layout, key='removal_tab')],
+            [sg.Tab('Spinning disk drives', tab_layout['__spinning'], key='spinning_tab')],
+            [sg.Tab('SSD drives', tab_layout['__ssd'], key='ssd_tab')],
+            [sg.Tab('NVME drives', tab_layout['__nvme'], key='nvme_tab')],
+            [sg.Tab('Removable drives', tab_layout['__removal'], key='removal_tab')],
         ]
 
         tabgroup = [[sg.Frame('Disk type options',
@@ -548,6 +553,11 @@ class MainGuiApp:
 
         while True:
             event, values = self.window.Read(timeout=1000)  # Please try and use a timeout when possible
+
+            print(values['drive_auto__spinning'])
+            print(values['drive_auto__ssd'])
+            print(values['drive_auto__nvme'])
+            print(values['drive_auto__removal'])
 
             # Event (buttons and enable_event enabled controls) handling
             if event is None:
