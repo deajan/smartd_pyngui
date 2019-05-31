@@ -213,7 +213,13 @@ class Configuration:
 
     def set_smartd_defaults(self):
         self.drive_list = ['DEVICESCAN']
-        self.config_list = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
+        self.config_list = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-W 20,25,30', '-n sleep,7,q',
+                            '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
+        self.config_list_ssd_drives = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
+                            '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
+        self.config_list_nvme_drives = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
+                            '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
+        self.config_list_removable_drives = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
 
         # Default behavior is to for smartmontools to launch this app with --alert
@@ -350,7 +356,7 @@ class MainGuiApp:
                                      ]
 
         self.temperature_parameter_map = [('-I 194', 'Ignore temperature changes'),
-                                          ('-W', 'Report temperature changes (set values)'),
+                                          ('-W', 'Report temperature thresholds'),
                                           ]
 
         self.manual_drive_list_tooltip = 'Even under Windows, smartd addresses disks as \'/dev/sda /dev/sdb ... /dev/sdX\'\n' \
@@ -361,7 +367,7 @@ class MainGuiApp:
                                          '/dev/sda\n' \
                                          '/dev/sdb\n' \
                                          '/dev/csmi0,1'
-  
+
         self.tooltip_image = b'R0lGODlhFAAUAPcAAAAAAAEBAQICAgMDAwYGBggICAkJCQoKCgwMDA4ODhAQEBQUFBoaGhsbGxwcHB0dHR4eHh8fHyAgICEhISIiIiMjIyYmJioqKi4uLjIyMjU1NTg4OEVFRU5OTk9PT1BQUFJSUlRUVFVVVVZWVldXV1hYWGBgYGdnZ2lpaWpqamxsbG1tbW5ubm9vb3h4eAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAAP8ALAAAAAAUABQAAAifAP8JHPhvBAUDBiiMIMhwYIQAECNChNBQYAuJGCOuYHgxo8eNAzEeINgBo0OT/y4wELhB4gOBGQUKCBBS4j8SGQssgCjQBcYQFTxCxCBwAkYJBoQOEMghI4GkHkH8y+CRAAWhJlgIjSBCqNcAUj0qEAgV5YOMKgSWyNigpkQNAi3EHJgiYwIEGU8wRPEVot6KDYSurEjwg4MBAxx4qBgQADs=\n'
 
         self.spacer_tweak = [sg.T(' ' * 702, font=('Helvetica', 1))]
@@ -371,6 +377,8 @@ class MainGuiApp:
 
     def main_gui(self):
         current_conf_file = None
+
+        self.drive_types = ['__spinning', '__ssd', '__nvme', '__removal']
 
         head_col = [[sg.Text(APP_DESCRIPTION)],
                     [sg.Frame('Configuration file', [[sg.InputText(self.config.smart_conf_file, key='smart_conf_file',
@@ -405,13 +413,13 @@ class MainGuiApp:
 
         # Tab content
         tab_layout = {}
-        for tab_type in ['__spinning', '__ssd', '__nvme', '__removal']:
-            drive_selection = [[sg.Radio('Automatic', group_id='drive_detection' + tab_type, key='drive_auto' + tab_type, enable_events=True)],
-                               [sg.Radio('Manual drive list', group_id='drive_detection' + tab_type, key='drive_manual' + tab_type,
+        for drive_type in self.drive_types:
+            drive_selection = [[sg.Radio('Automatic', group_id='drive_detection' + drive_type, key='drive_auto' + drive_type, enable_events=True)],
+                               [sg.Radio('Manual drive list', group_id='drive_detection' + drive_type, key='drive_manual' + drive_type,
                                          enable_events=True, tooltip=self.manual_drive_list_tooltip),
                                 sg.Image(data=self.tooltip_image, key='manual_drive_list_tooltip', enable_events=True)]
                                ]
-            drive_list = [[sg.Multiline(size=(60, 6), key='drive_list' + tab_type, do_not_clear=True,
+            drive_list = [[sg.Multiline(size=(60, 6), key='drive_list' + drive_type, do_not_clear=True,
                                         background_color=self.color_grey_disabled)]]
             drive_config = [[sg.Frame('Drive detection', [[sg.Column(drive_selection), sg.Column(drive_list)],
                                                           self.spacer_tweak,
@@ -419,10 +427,10 @@ class MainGuiApp:
 
             # Long self-tests
             long_test_time = [
-                [sg.T('Schedule a long test at '), sg.InputCombo(self.hours, key='long_test_hour' + tab_type), sg.T('H every')]]
+                [sg.T('Schedule a long test at '), sg.InputCombo(self.hours, key='long_test_hour' + drive_type), sg.T('H every')]]
             long_test_days = []
             for i in range(0, 7):
-                key = 'long_day_' + self.days[i] + tab_type
+                key = 'long_day_' + self.days[i] + drive_type
                 long_test_days.append(sg.Checkbox(self.days[i], key=key))
             long_test_days = [long_test_days]
             long_tests = [[sg.Frame('Scheduled long self-tests', [[sg.Column(long_test_time)],
@@ -432,10 +440,10 @@ class MainGuiApp:
 
             # Short self-tests
             short_test_time = [
-                [sg.T('Schedule a short test at '), sg.InputCombo(self.hours, key='short_test_hour' + tab_type), sg.T('H every')]]
+                [sg.T('Schedule a short test at '), sg.InputCombo(self.hours, key='short_test_hour' + drive_type), sg.T('H every')]]
             short_test_days = []
             for i in range(0, 7):
-                key = 'short_day_' + self.days[i] + tab_type
+                key = 'short_day_' + self.days[i] + drive_type
                 short_test_days.append(sg.Checkbox(self.days[i], key=key))
             short_test_days = [short_test_days]
             short_tests = [[sg.Frame('Scheduled short self-tests', [[sg.Column(short_test_time)],
@@ -449,9 +457,9 @@ class MainGuiApp:
             smart_health_col2 = []
             for key, description in self.health_parameter_map:
                 if count <= 6:
-                    smart_health_col1.append([sg.Checkbox(description + ' (' + key + ')', key=key + tab_type)])
+                    smart_health_col1.append([sg.Checkbox(description + ' (' + key + ')', key=key + drive_type)])
                 else:
-                    smart_health_col2.append([sg.Checkbox(description + ' (' + key + ')', key=key + tab_type)])
+                    smart_health_col2.append([sg.Checkbox(description + ' (' + key + ')', key=key + drive_type)])
                 count += 1
 
             attributes_check = [
@@ -462,18 +470,18 @@ class MainGuiApp:
             # Temperature checks
             temperature_check = []
             for key, description in self.temperature_parameter_map:
-                temperature_check.append([sg.Checkbox(description + ' (' + key + ')', key=key + tab_type)])
+                temperature_check.append([sg.Checkbox(description + ' (' + key + ')', key=key + drive_type)])
             temperature_options = [[sg.Frame('Temperature settings',
                                              [[sg.Column(temperature_check),
                                                sg.Column([[sg.T('Temperature difference since last report')],
                                                           [sg.T('Info log when temperature reached')],
                                                           [sg.T('Critical log when temperature reached')],
                                                           ]),
-                                               sg.Column([[sg.InputCombo(self.temperature_celsius, key='temp_diff' + tab_type,
+                                               sg.Column([[sg.InputCombo(self.temperature_celsius, key='temp_diff' + drive_type,
                                                                          default_value='20')],
-                                                          [sg.InputCombo(self.temperature_celsius, key='temp_info' + tab_type,
+                                                          [sg.InputCombo(self.temperature_celsius, key='temp_info' + drive_type,
                                                                          default_value='55')],
-                                                          [sg.InputCombo(self.temperature_celsius, key='temp_crit' + tab_type,
+                                                          [sg.InputCombo(self.temperature_celsius, key='temp_crit' + drive_type,
                                                                          default_value='60')],
                                                           ]),
 
@@ -486,8 +494,8 @@ class MainGuiApp:
             energy_text = [[sg.T('Do not execute smart tests when disk energy mode is ')],
                            [sg.T('Force test execution after N skipped tests')],
                            ]
-            energy_choices = [[sg.InputCombo(self.energy_modes, key='energy_mode' + tab_type)],
-                              [sg.InputCombo(["%.1d" % i for i in range(8)], key='energy_skips' + tab_type)],
+            energy_choices = [[sg.InputCombo(self.energy_modes, key='energy_mode' + drive_type)],
+                              [sg.InputCombo(["%.1d" % i for i in range(8)], key='energy_skips' + drive_type)],
                               ]
             energy_options = [[sg.Frame('Energy saving', [[sg.Column(energy_text), sg.Column(energy_choices)],
                                                           self.spacer_tweak,
@@ -495,7 +503,7 @@ class MainGuiApp:
 
 
             # TODO: use different key prefixes when generating this
-            tab_layout[tab_type] = [
+            tab_layout[drive_type] = [
                 [sg.Column(drive_config)],
                 [sg.Column(long_tests), sg.Column(short_tests)],
                 [sg.Column(attributes_check)],
@@ -637,98 +645,99 @@ class MainGuiApp:
         return [sg.T(' ' * pixels, font=('Helvetica', 1))]
 
     def update_main_gui_config(self):
-        # Apply drive config
-        if self.config.drive_list == ['DEVICESCAN']:
-            self.window.Element('drive_auto').Update(True)
-        else:
-            self.window.Element('drive_manual').Update(True)
-            for drive in self.config.drive_list:
-                drives = drive + '\n'
-                self.window.Element('drive_list').Update(drives)
+        for drive_type in self.drive_types:
+            # Apply drive config
+            if self.config.drive_list == ['DEVICESCAN']:
+                self.window.Element('drive_auto' + drive_type).Update(True)
+            else:
+                self.window.Element('drive_manual' + drive_type).Update(True)
+                for drive in self.config.drive_list:
+                    drives = drive + '\n'
+                    self.window.Element('drive_list' + drive_type).Update(drives)
 
-        # Self test regex GUI setup
-        if '-s' in '\t'.join(self.config.config_list):
+            # Self test regex GUI setup
+            if '-s' in '\t'.join(self.config.config_list):
+                for i, item in enumerate(self.config.config_list):
+                    if '-s' in item:
+                        index = i
+
+                        # TODO: Add other regex parameter here (group 1 & 2 missing)
+                        long_test = re.search('L/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[index])
+                        if long_test:
+                            # print(long_test.group(1))
+                            # print(long_test.group(2))
+                            # print(long_test.group(3))
+                            if long_test.group(3):
+                                day_list = list(long_test.group(3))
+                                # Handle special case where . means all
+                                if day_list[0] == '.':
+                                    for day in range(0, 7):
+                                        self.window.Element('long_day_' + self.days[day] + drive_type).Update(True)
+                                else:
+                                    for day in day_list:
+                                        if day.strip("[]").isdigit():
+                                            self.window.Element('long_day_' + self.days[int(day.strip("[]")) - 1] + drive_type).Update(
+                                                True)
+                            if long_test.group(4):
+                                self.window.Element('long_test_hour' + drive_type).Update(long_test.group(4))
+
+                        short_test = re.search('S/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[index])
+                        if short_test:
+                            # print(short_test.group(1))
+                            # print(short_test.group(2))
+                            if short_test.group(3):
+                                day_list = list(short_test.group(3))
+                                # Handle special case where . means all
+                                if day_list[0] == '.':
+                                    for day in range(0, 7):
+                                        self.window.Element('short_day_' + self.days[day] + drive_type).Update(True)
+                                else:
+                                    for day in day_list:
+                                        if day.strip("[]").isdigit():
+                                            self.window.Element('short_day_' + self.days[int(day.strip("[]")) - 1] + drive_type).Update(
+                                                True)
+                            if short_test.group(4):
+                                self.window.Element('short_test_hour' + drive_type).Update(short_test.group(4))
+
+                        break
+
+            # Attribute checks GUI setup
+            for key, value in self.health_parameter_map:
+                if key in self.config.config_list:
+                    self.window.Element(key + drive_type).Update(True)
+                    # Handle specific dependancy cases (-C 197+ depends on -C 197 and -U 198+ depends on -U 198)
+                    if key == '-C 197+':
+                        self.window.Element('-C 197' + drive_type).Update(True)
+                    elif key == '-U 198+':
+                        self.window.Element('-U 198' + drive_type).Update(True)
+
+            # Handle temperature specific cases
             for i, item in enumerate(self.config.config_list):
-                if '-s' in item:
-                    index = i
+                if re.match(r'^-W [0-9]{1,2},[0-9]{1,2},[0-9]{1,2}$', item):
+                    self.window.Element('-W' + drive_type).Update(True)
+                    self.window.Element('-I 194' + drive_type).Update(False)
+                    temperatures = item.split(' ')[1]
+                    temperatures = temperatures.split(',')
+                    self.window.Element('temp_diff' + drive_type).Update(temperatures[0])
+                    self.window.Element('temp_info' + drive_type).Update(temperatures[1])
+                    self.window.Element('temp_crit' + drive_type).Update(temperatures[2])
 
-                    # TODO: Add other regex parameter here (group 1 & 2 missing)
-                    long_test = re.search('L/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[index])
-                    if long_test:
-                        # print(long_test.group(1))
-                        # print(long_test.group(2))
-                        # print(long_test.group(3))
-                        if long_test.group(3):
-                            day_list = list(long_test.group(3))
-                            # Handle special case where . means all
-                            if day_list[0] == '.':
-                                for day in range(0, 7):
-                                    self.window.Element('long_day_' + self.days[day]).Update(True)
-                            else:
-                                for day in day_list:
-                                    if day.strip("[]").isdigit():
-                                        self.window.Element('long_day_' + self.days[int(day.strip("[]")) - 1]).Update(
-                                            True)
-                        if long_test.group(4):
-                            self.window.Element('long_test_hour').Update(long_test.group(4))
+            # Energy saving GUI setup
+            if '-n' in '\t'.join(self.config.config_list):
+                for i, item in enumerate(self.config.config_list):
+                    if '-n' in item:
+                        index = i
 
-                    short_test = re.search('S/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[index])
-                    if short_test:
-                        # print(short_test.group(1))
-                        # print(short_test.group(2))
-                        if short_test.group(3):
-                            day_list = list(short_test.group(3))
-                            # Handle special case where . means all
-                            if day_list[0] == '.':
-                                for day in range(0, 7):
-                                    self.window.Element('short_day_' + self.days[day]).Update(True)
-                            else:
-                                for day in day_list:
-                                    if day.strip("[]").isdigit():
-                                        self.window.Element('short_day_' + self.days[int(day.strip("[]")) - 1]).Update(
-                                            True)
-                        if short_test.group(4):
-                            self.window.Element('short_test_hour').Update(short_test.group(4))
+                        energy_savings = self.config.config_list[index].split(',')
+                        for mode in self.energy_modes:
+                            if mode in energy_savings[0]:
+                                self.window.Element('energy_mode' + drive_type).Update(mode)
 
-                    break
-
-        # Attribute checks GUI setup
-        for key, value in self.health_parameter_map:
-            if key in self.config.config_list:
-                self.window.Element(key).Update(True)
-                # Handle specific dependancy cases (-C 197+ depends on -C 197 and -U 198+ depends on -U 198)
-                if key == '-C 197+':
-                    self.window.Element('-C 197').Update(True)
-                elif key == '-U 198+':
-                    self.window.Element('-U 198').Update(True)
-
-        # Handle temperature specific cases
-        for i, item in enumerate(self.config.config_list):
-            if re.match(r'^-W [0-9]{1,2},[0-9]{1,2},[0-9]{1,2}$', item):
-                self.window.Element('-W').Update(True)
-                self.window.Element('-I 194').Update(False)
-                temperatures = item.split(' ')[1]
-                temperatures = temperatures.split(',')
-                self.window.Element('temp_diff').Update(temperatures[0])
-                self.window.Element('temp_info').Update(temperatures[1])
-                self.window.Element('temp_crit').Update(temperatures[2])
-
-        # Energy saving GUI setup
-        if '-n' in '\t'.join(self.config.config_list):
-            for i, item in enumerate(self.config.config_list):
-                if '-n' in item:
-                    index = i
-
-                    energy_savings = self.config.config_list[index].split(',')
-                    for mode in self.energy_modes:
-                        if mode in energy_savings[0]:
-                            self.window.Element('energy_mode').Update(mode)
-
-                    if energy_savings[1].isdigit():
-                        self.window.Element('energy_skips').Update(energy_savings[1])
-                    # if energy_savings[1] == 'q':
-                    # TODO: handle q parameter
-                    break
+                        if energy_savings[1].isdigit():
+                            self.window.Element('energy_skips' + drive_type).Update(energy_savings[1])
+                        # if energy_savings[1] == 'q':
+                        # TODO: handle q parameter
+                        break
 
         # self.alert_switcher((['use_internal_alert'] = True))
         # Get alert options
