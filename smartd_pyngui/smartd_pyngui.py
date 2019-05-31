@@ -213,7 +213,7 @@ class Configuration:
 
     def set_smartd_defaults(self):
         self.drive_list = ['DEVICESCAN']
-        self.config_list = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-W 20,25,30', '-n sleep,7,q',
+        self.config_list = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-W 20,55,60', '-n sleep,7,q',
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
         self.config_list_ssd_drives = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
@@ -562,11 +562,6 @@ class MainGuiApp:
         while True:
             event, values = self.window.Read(timeout=1000)  # Please try and use a timeout when possible
 
-            print(values['drive_auto__spinning'])
-            print(values['drive_auto__ssd'])
-            print(values['drive_auto__nvme'])
-            print(values['drive_auto__removal'])
-
             # Event (buttons and enable_event enabled controls) handling
             if event is None:
                 action = sg.Popup('Do you want to save settings and reload service', custom_text=('Yes', 'No'))
@@ -712,16 +707,14 @@ class MainGuiApp:
                         self.window.Element('-U 198' + drive_type).Update(True)
 
             # Handle temperature specific cases
-            for i, item in enumerate(self.config.config_list):
+            for item in self.config.config_list:
                 if re.match(r'^-W [0-9]{1,2},[0-9]{1,2},[0-9]{1,2}$', item):
                     self.window.Element('-W' + drive_type).Update(True)
-                    self.window.Element('-I 194' + drive_type).Update(False)
                     temperatures = item.split(' ')[1]
                     temperatures = temperatures.split(',')
                     self.window.Element('temp_diff' + drive_type).Update(temperatures[0])
                     self.window.Element('temp_info' + drive_type).Update(temperatures[1])
                     self.window.Element('temp_crit' + drive_type).Update(temperatures[2])
-
             # Energy saving GUI setup
             if '-n' in '\t'.join(self.config.config_list):
                 for i, item in enumerate(self.config.config_list):
