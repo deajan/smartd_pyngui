@@ -118,9 +118,24 @@ class Configuration:
         self.smart_conf_file = None
         self.alert_conf_file = None
 
-        self.config_list = None
-        self.drive_list = None
+        self.drive_types = ['__spinning', '__ssd', '__nvme', '__removable']
 
+        # Contains smartd drive configurations
+        self.config_list_spinning_drives = None
+        self.config_list_ssd_drives = None
+        self.config_list_nvme_drives = None
+        self.config_list_removable_drives = None
+
+        # Contains smartd drive list per type (automatic detected by smartctl --scan or manual list)
+        self.drive_list_spinning_drives = None
+        self.drive_list_ssd_drives = None
+        self.drive_list_nvme_drives = None
+        self.drive_list_removable_drives = None
+
+        # Contains smartd global alert configuration
+        self.config_list_alerts = None
+
+        # Contains smartd_pyngui alert settings
         self.int_alert_config = scrambledconfigparser.ScrambledConfigParser()
         self.int_alert_config.set_key(AES_ENCRYPTION_KEY)
 
@@ -213,7 +228,7 @@ class Configuration:
 
     def set_smartd_defaults(self):
         self.drive_list = ['DEVICESCAN']
-        self.config_list = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-W 20,55,60', '-n sleep,7,q',
+        self.config_list_spinning_drives = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-W 20,55,60', '-n sleep,7,q',
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
         self.config_list_ssd_drives = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
@@ -223,8 +238,8 @@ class Configuration:
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
 
         # Default behavior is to for smartmontools to launch this app with --alert
-        self.config_list.append('-m <nomailer>')
-        self.config_list.append('-M exec "%s --alert"' % self.app_executable)
+        self.config_list_alerts.append('-m <nomailer>')
+        self.config_list_alerts.append('-M exec "%s --alert"' % self.app_executable)
 
     def set_alert_defaults(self):
         self.int_alert_config.add_section('ALERT')
@@ -240,6 +255,7 @@ class Configuration:
         self.int_alert_config['ALERT']['COMPRESS_LOGS'] = 'yes'
         self.int_alert_config['ALERT']['LOCAL_ALERT'] = 'no'
 
+    # TODO use 4 different config lists
     def read_smartd_conf_file(self, conf_file=None):
         if conf_file is None:
             conf_file = self.smart_conf_file
@@ -275,6 +291,7 @@ class Configuration:
             sg.PopupError(msg)
             return False
 
+    # TODO write 4 different config_lists
     def write_smartd_conf_file(self):
         try:
             with open(self.smart_conf_file, 'w') as fp:
@@ -378,8 +395,6 @@ class MainGuiApp:
     def main_gui(self):
         current_conf_file = None
 
-        self.drive_types = ['__spinning', '__ssd', '__nvme', '__removal']
-
         head_col = [[sg.Text(APP_DESCRIPTION)],
                     [sg.Frame('Configuration file', [[sg.InputText(self.config.smart_conf_file, key='smart_conf_file',
                                                                    enable_events=True, do_not_clear=True, size=(80, 1)),
@@ -413,7 +428,7 @@ class MainGuiApp:
 
         # Tab content
         tab_layout = {}
-        for drive_type in self.drive_types:
+        for drive_type in self.config.drive_types:
             drive_selection = [[sg.Radio('Automatic', group_id='drive_detection' + drive_type, key='drive_auto' + drive_type, enable_events=True)],
                                [sg.Radio('Manual drive list', group_id='drive_detection' + drive_type, key='drive_manual' + drive_type,
                                          enable_events=True, tooltip=self.manual_drive_list_tooltip),
@@ -516,7 +531,7 @@ class MainGuiApp:
             [sg.Tab('Spinning disk drives', tab_layout['__spinning'], key='spinning_tab')],
             [sg.Tab('SSD drives', tab_layout['__ssd'], key='ssd_tab')],
             [sg.Tab('NVME drives', tab_layout['__nvme'], key='nvme_tab')],
-            [sg.Tab('Removable drives', tab_layout['__removal'], key='removal_tab')],
+            [sg.Tab('Removable drives', tab_layout['__removable'], key='removable_tab')],
         ]
 
         tabgroup = [[sg.Frame('Disk type options',
@@ -614,11 +629,11 @@ class MainGuiApp:
                 if values['global_settings']:
                     self.window.Element('ssd_tab').Update(disabled=True)
                     self.window.Element('nvme_tab').Update(disabled=True)
-                    self.window.Element('removal_tab').Update(disabled=True)
+                    self.window.Element('removable_tab').Update(disabled=True)
                 else:
                     self.window.Element('ssd_tab').Update(disabled=False)
                     self.window.Element('nvme_tab').Update(disabled=False)
-                    self.window.Element('removal_tab').Update(disabled=False)
+                    self.window.Element('removable_tab').Update(disabled=False)
         self.window.Close()
 
     def alert_switcher(self, values):
@@ -640,7 +655,7 @@ class MainGuiApp:
         return [sg.T(' ' * pixels, font=('Helvetica', 1))]
 
     def update_main_gui_config(self):
-        for drive_type in self.drive_types:
+        for drive_type in self.config.drive_types:
             # Apply drive config
             if self.config.drive_list == ['DEVICESCAN']:
                 self.window.Element('drive_auto' + drive_type).Update(True)
@@ -755,177 +770,197 @@ class MainGuiApp:
         self.alert_switcher(v)
 
     def get_main_gui_config(self, values):
-        drive_list = []
-        config_list = []
+        for drive_type in self.config.drive_types:
+            drive_list = []
+            config_list = []
 
-        if values['drive_auto'] is True:
-            drive_list.append('DEVICESCAN')
-        else:
-            drive_list = values['drive_list'].split()
+            if values['drive_auto' + drive_type] is True:
+                drive_list.append('DEVICESCAN')
+            else:
+                drive_list = values['drive_list' + drive_type].split()
 
-            # TODO: better bogus pattern detection
-            # TODO: needs to raise exception
+                # TODO: better bogus pattern detection
+                # TODO: needs to raise exception
 
-            if drive_list == []:
-                msg = "Drive list is empty"
-                logger.error(msg)
-                sg.PopupError(msg)
-                return False
-
-            if "example" in drive_list or "exemple" in drive_list:
-                msg = "Drive list contains example !!!"
-                logger.error(msg)
-                sg.PopupError(msg)
-                return False
-
-            for item in drive_list:
-                if not item[0] == "/":
-                    msg = "Drive list doesn't start with slash [%s]." % item
+                if drive_list == []:
+                    msg = "Drive list is empty"
                     logger.error(msg)
                     sg.PopupError(msg)
                     return False
 
-        # smartd health parameters
-        try:
-            for key, _ in self.health_parameter_map:
-                if values[key]:
-                    # Handle dependancies
-                    if key == '-C 197+':
-                        if '-C 197' in config_list:
-                            for (i, item) in enumerate(config_list):
-                                if item == '-C 197':
-                                    config_list[i] = '-C 197+'
+                if "example" in drive_list or "exemple" in drive_list:
+                    msg = "Drive list contains example !!!"
+                    logger.error(msg)
+                    sg.PopupError(msg)
+                    return False
+
+                for item in drive_list:
+                    if not item[0] == "/":
+                        msg = "Drive list doesn't start with slash [%s]." % item
+                        logger.error(msg)
+                        sg.PopupError(msg)
+                        return False
+
+            # smartd health parameters
+            try:
+                for key, _ in self.health_parameter_map:
+                    # Remove drive_type prefix
+                    key = key[:-len(drive_type)]
+
+                    if values[key]:
+                        # Handle dependancies
+                        if key == '-C 197+':
+                            if '-C 197' in config_list:
+                                for (i, item) in enumerate(config_list):
+                                    if item == '-C 197':
+                                        config_list[i] = '-C 197+'
+                            else:
+                                config_list.append(key)
+                        elif key == '-U 198+':
+                            if '-U 198' in config_list:
+                                for (i, item) in enumerate(config_list):
+                                    if item == '-U 198':
+                                        config_list[i] = '-U 198+'
+                            else:
+                                config_list.append(key)
                         else:
                             config_list.append(key)
-                    elif key == '-U 198+':
-                        if '-U 198' in config_list:
-                            for (i, item) in enumerate(config_list):
-                                if item == '-U 198':
-                                    config_list[i] = '-U 198+'
-                        else:
+
+            except KeyError:
+                msg = "Bogus configuration in health parameters."
+                logger.error(msg)
+                logger.debug('Trace:', exc_info=True)
+                logger.debug(config_list)
+                sg.PopupError(msg)
+                return False
+
+            try:
+                for key, _ in self.temperature_parameter_map:
+                    # Remove drive_type prefix
+                    key = key[:-len(drive_type)]
+                    if values[key]:
+                        if key == '-W':
+                            config_list.append(
+                                key + ' ' + str(values['temp_diff' + drive_type]) + ',' + str(values['temp_info' + drive_type]) + ',' + str(
+                                    values['temp_crit' + drive_type]))
+                        elif key == '-I 194':
                             config_list.append(key)
-                    else:
-                        config_list.append(key)
+            except Exception:
+                if key:
+                    msg = "Bogus configuration in [%s] and temperatures." % key
+                else:
+                    msg = "Bogus configuration in temperatures. Cannot read keys."
+                logger.error(msg)
+                logger.debug('Trace:', exc_info=True)
+                logger.debug(config_list)
+                sg.PopupError(msg)
+                return False
 
-        except KeyError:
-            msg = "Bogus configuration in health parameters."
-            logger.error(msg)
-            logger.debug('Trace:', exc_info=True)
+            try:
+                energy_list = False
+                energy_mode = values['energy_mode' + drive_type]
+                if energy_mode in self.energy_modes:
+                    energy_list = '-n ' + energy_mode
+                skip_tests = values['energy_skips' + drive_type]
+                if energy_list:
+                    energy_list += ',' + str(skip_tests)
+                    # TODO: handle -q parameter in GUI
+                    energy_list += ',q'
+
+                    config_list.append(energy_list)
+            except Exception as e:
+                msg = 'Energy config error'
+                logger.error(msg)
+                logger.error(e)
+                logger.debug('Trace', exc_info=True)
+                sg.PopupError(msg)
+                return False
+
+            # Transforms selftest checkboxes into long / short tests expression for smartd
+            # Still not a good implementation after the Inno Setup ugly implementation
+            try:
+                long_regex = None
+                short_regex = None
+                tests_regex = None
+
+                for test_type in self.test_types:
+                    regex = "["
+                    present = False
+
+                    for day in self.days:
+                        if values[test_type + '_day_' + day + drive_type] is True:
+                            regex += str(self.days.index(day) + 1)
+                            present = True
+                    regex += "]"
+                    # regex = regex.rstrip(',')
+
+                    long_test_hour = values['long_test_hour' + drive_type]
+                    short_test_hour = values['short_test_hour' + drive_type]
+
+                    if test_type == self.test_types[0] and present is True:
+                        long_regex = "L/../../" + regex + "/" + str(long_test_hour)
+                    elif test_type == self.test_types[1] and present is True:
+                        short_regex = "S/../../" + regex + "/" + str(short_test_hour)
+
+                if long_regex is not None and short_regex is not None:
+                    tests_regex = "-s (%s|%s)" % (long_regex, short_regex)
+                elif long_regex is not None:
+                    tests_regex = "-s %s" % long_regex
+                elif short_regex is not None:
+                    tests_regex = "-s %s" % short_regex
+
+                if tests_regex is not None:
+                    config_list.append(tests_regex)
+
+
+            except Exception as e:
+                msg = 'Test regex creation error'
+                logger.error(msg)
+                logger.error(e)
+                logger.debug('Trace', exc_info=True)
+                sg.PopupError(msg)
+                return False
+
+            logger.debug(drive_list)
             logger.debug(config_list)
-            sg.PopupError(msg)
-            return False
+            if drive_type == '__spinning':
+                self.config.drive_list_spinning_drives = drive_list
+                self.config.config_list_spinning_drive = config_list
+            elif drive_type == '__ssd':
+                self.config.drive_list_ssd_drives = drive_list
+                self.config.config_list_ssd__drive = config_list
+            elif drive_type == '__nvme':
+                self.config.drive_list_nvme_drives = drive_list
+                self.config.config_list_nvme_drive = config_list
+            elif drive_type == '__removable':
+                self.config.drive_list_removable_drive = drive_list
+                self.config.config_list_removable_drive = config_list
 
-        try:
-            for key, _ in self.temperature_parameter_map:
-                if values[key]:
-                    if key == '-W':
-                        config_list.append(
-                            key + ' ' + str(values['temp_diff']) + ',' + str(values['temp_info']) + ',' + str(
-                                values['temp_crit']))
-                    elif key == '-I 194':
-                        config_list.append(key)
-        except Exception:
-            if key:
-                msg = "Bogus configuration in [%s] and temperatures." % key
-            else:
-                msg = "Bogus configuration in temperatures. Cannot read keys."
-            logger.error(msg)
-            logger.debug('Trace:', exc_info=True)
-            logger.debug(config_list)
-            sg.PopupError(msg)
-            return False
-
-        try:
-            energy_list = False
-            energy_mode = values['energy_mode']
-            if energy_mode in self.energy_modes:
-                energy_list = '-n ' + energy_mode
-            skip_tests = values['energy_skips']
-            if energy_list:
-                energy_list += ',' + str(skip_tests)
-                # TODO: handle -q parameter in GUI
-                energy_list += ',q'
-
-                config_list.append(energy_list)
-        except Exception as e:
-            msg = 'Energy config error'
-            logger.error(msg)
-            logger.error(e)
-            logger.debug('Trace', exc_info=True)
-            sg.PopupError(msg)
-            return False
-
-        # Transforms selftest checkboxes into long / short tests expression for smartd
-        # Still not a good implementation after the Inno Setup ugly implementation
-        try:
-            long_regex = None
-            short_regex = None
-            tests_regex = None
-
-            for test_type in self.test_types:
-                regex = "["
-                present = False
-
-                for day in self.days:
-                    if values[test_type + '_day_' + day] is True:
-                        regex += str(self.days.index(day) + 1)
-                        present = True
-                regex += "]"
-                # regex = regex.rstrip(',')
-
-                long_test_hour = values['long_test_hour']
-                short_test_hour = values['short_test_hour']
-
-                if test_type == self.test_types[0] and present is True:
-                    long_regex = "L/../../" + regex + "/" + str(long_test_hour)
-                elif test_type == self.test_types[1] and present is True:
-                    short_regex = "S/../../" + regex + "/" + str(short_test_hour)
-
-            if long_regex is not None and short_regex is not None:
-                tests_regex = "-s (%s|%s)" % (long_regex, short_regex)
-            elif long_regex is not None:
-                tests_regex = "-s %s" % long_regex
-            elif short_regex is not None:
-                tests_regex = "-s %s" % short_regex
-
-            if tests_regex is not None:
-                config_list.append(tests_regex)
-
-
-        except Exception as e:
-            msg = 'Test regex creation error'
-            logger.error(msg)
-            logger.error(e)
-            logger.debug('Trace', exc_info=True)
-            sg.PopupError(msg)
-            return False
+        config_list_alerts = []
 
         # TODO: -M can't exist without -m
         # Mailer options
         if values['use_system_mailer'] is True:
             mail_addresses = values['mail_addresses']
             if len(mail_addresses) > 0:
-                config_list.append('-m ' + mail_addresses)
+                config_list_alerts.append('-m ' + mail_addresses)
             else:
                 msg = 'Missing mail addresses'
                 logger.error(msg)
                 sg.PopupError(msg)
                 raise AttributeError
         else:
-            config_list.append('-m <nomailer>')
+            config_list_alerts.append('-m <nomailer>')
             if values['use_internal_alert'] is True:
-                config_list.append('-M exec "%s"' % self.config.app_executable)
+                config_list_alerts.append('-M exec "%s"' % self.config.app_executable)
             if values['use_external_script'] is True:
                 external_script_path = values['external_script_path']
                 if len(external_script_path) > 0:
-                    config_list.append('-M exec "%s"' % values['external_script_path'])
+                    config_list_alerts.append('-M exec "%s"' % values['external_script_path'])
                 else:
-                    config_list.append('-M exec "%s"' % self.config.app_executable)
+                    config_list_alerts.append('-M exec "%s"' % self.config.app_executable)
+        self.config.config_list_alerts = config_list_alerts
 
-        logger.debug(drive_list)
-        logger.debug(config_list)
-        self.config.drive_list = drive_list
-        self.config.config_list = config_list
         return True
 
     @staticmethod
