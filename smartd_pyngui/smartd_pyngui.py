@@ -670,14 +670,16 @@ class MainGuiApp:
                     drives = drive + '\n'
                     self.window.Element('drive_list' + drive_type).Update(drives)
 
+            config_list = self.config.config_list[drive_type]
+
             # Self test regex GUI setup
-            if '-s' in '\t'.join(self.config.config_list[drive_type]):
-                for i, item in enumerate(self.config.config_list[drive_type]):
+            if '-s' in '\t'.join(config_list):
+                for i, item in enumerate(config_list):
                     if '-s' in item:
                         index = i
 
                         # TODO: Add other regex parameter here (group 1 & 2 missing)
-                        long_test = re.search('L/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[drive_type][index])
+                        long_test = re.search('L/(.+?)/(.+?)/(.+?)/([0-9]*)', config_list[index])
                         if long_test:
                             # print(long_test.group(1))
                             # print(long_test.group(2))
@@ -696,7 +698,7 @@ class MainGuiApp:
                             if long_test.group(4):
                                 self.window.Element('long_test_hour' + drive_type).Update(long_test.group(4))
 
-                        short_test = re.search('S/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[drive_type][index])
+                        short_test = re.search('S/(.+?)/(.+?)/(.+?)/([0-9]*)', config_list[index])
                         if short_test:
                             # print(short_test.group(1))
                             # print(short_test.group(2))
@@ -713,13 +715,14 @@ class MainGuiApp:
                                                 True)
                             if short_test.group(4):
                                 self.window.Element('short_test_hour' + drive_type).Update(short_test.group(4))
-
+                        config_list.pop(index)
                         break
 
             # Attribute checks GUI setup
-            for key, value in self.health_parameter_map:
-                if key in self.config.config_list[drive_type]:
+            for key, _ in self.health_parameter_map:
+                if key in config_list:
                     self.window.Element(key + drive_type).Update(True)
+                    config_list.remove(key)
                     # Handle specific dependancy cases (-C 197+ depends on -C 197 and -U 198+ depends on -U 198)
                     if key == '-C 197+':
                         self.window.Element('-C 197' + drive_type).Update(True)
@@ -727,7 +730,13 @@ class MainGuiApp:
                         self.window.Element('-U 198' + drive_type).Update(True)
 
             # Handle temperature specific cases
-            for item in self.config.config_list[drive_type]:
+            for index, item in enumerate(config_list):
+                if item == '-I 194':
+                    self.window.Element('-I 194'+ drive_type).Update(True)
+                    config_list.pop(index)
+                    break
+
+            for index, item in enumerate(config_list):
                 if re.match(r'^-W [0-9]{1,2},[0-9]{1,2},[0-9]{1,2}$', item):
                     self.window.Element('-W' + drive_type).Update(True)
                     temperatures = item.split(' ')[1]
@@ -735,13 +744,13 @@ class MainGuiApp:
                     self.window.Element('temp_diff' + drive_type).Update(temperatures[0])
                     self.window.Element('temp_info' + drive_type).Update(temperatures[1])
                     self.window.Element('temp_crit' + drive_type).Update(temperatures[2])
+                    config_list.pop(index)
+                    break
             # Energy saving GUI setup
-            if '-n' in '\t'.join(self.config.config_list[drive_type]):
-                for i, item in enumerate(self.config.config_list[drive_type]):
+            if '-n' in '\t'.join(config_list):
+                for index, item in enumerate(config_list):
                     if '-n' in item:
-                        index = i
-
-                        energy_savings = self.config.config_list[drive_type][index].split(',')
+                        energy_savings = config_list[index].split(',')
                         for mode in self.energy_modes:
                             if mode in energy_savings[0]:
                                 self.window.Element('energy_mode' + drive_type).Update(mode)
@@ -750,7 +759,11 @@ class MainGuiApp:
                             self.window.Element('energy_skips' + drive_type).Update(energy_savings[1])
                         # if energy_savings[1] == 'q':
                         # TODO: handle q parameter
+                        config_list.pop(index)
                         break
+
+            # We need to pop every other element from config_list before to keep only supplementary options
+            self.window.Element('supplementary_options' + drive_type).Update(' '.join(config_list))
 
         # self.alert_switcher((['use_internal_alert'] = True))
         # Get alert options
@@ -925,6 +938,9 @@ class MainGuiApp:
                 logger.debug('Trace', exc_info=True)
                 sg.PopupError(msg)
                 return False
+
+            if values['supplementary_options' + drive_type]:
+                config_list.append(values['supplementary_options' + drive_type])
 
             logger.debug(drive_list)
             logger.debug(config_list)
