@@ -424,20 +424,13 @@ class MainGuiApp:
                                                      self.spacer_tweak,
                                                      ])]]
 
-        # Supplementary options
-        sup_options_col = [[sg.InputText(key='supplementary_options', size=(98, 1), do_not_clear=True)]]
-
-        sup_options = [[sg.Frame('Supplementary smartd options', [[sg.Column(sup_options_col)],
-                                                                  self.spacer_tweak,
-                                                                  ])]]
-
         # Tab content
         tab_layout = {}
         for drive_type in self.config.drive_types:
             drive_selection = [[sg.Radio('Automatic', group_id='drive_detection' + drive_type, key='drive_auto' + drive_type, enable_events=True)],
                                [sg.Radio('Manual drive list', group_id='drive_detection' + drive_type, key='drive_manual' + drive_type,
                                          enable_events=True, tooltip=self.manual_drive_list_tooltip),
-                                sg.Image(data=self.tooltip_image, key='manual_drive_list_tooltip', enable_events=True)]
+                                sg.Image(data=self.tooltip_image, key='manual_drive_list_tooltip' + drive_type, enable_events=True)]
                                ]
             drive_list = [[sg.Multiline(size=(60, 6), key='drive_list' + drive_type, do_not_clear=True,
                                         background_color=self.color_grey_disabled)]]
@@ -521,6 +514,13 @@ class MainGuiApp:
                                                           self.spacer_tweak,
                                                           ])]]
 
+            # Supplementary options
+            sup_options_col = [
+                [sg.InputText(key='supplementary_options' + drive_type, size=(98, 1), do_not_clear=True)]]
+
+            sup_options = [[sg.Frame('Supplementary smartd options', [[sg.Column(sup_options_col)],
+                                                                      self.spacer_tweak,
+                                                                      ])]]
 
             # TODO: use different key prefixes when generating this
             tab_layout[drive_type] = [
@@ -624,7 +624,7 @@ class MainGuiApp:
                     current_conf_file = values['smart_conf_file']
                 else:
                     self.window.Element('smart_conf_file').Update(current_conf_file)
-            elif event == 'manual_drive_list_tooltip':
+            elif 'manual_drive_list_tooltip' in event:
                 sg.Popup(self.manual_drive_list_tooltip)
             elif event == 'Configure':
                 self.configure_internal_alerts()
