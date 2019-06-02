@@ -1544,7 +1544,7 @@ if __name__ == '__main__':
         else:
             # Search for sudo executable in order to avoid using shell=True with subprocess
             sudo_path = None
-            for path in os.environ['PATH']:
+            for path in os.environ.get('PATH', ''):
                 if os.path.isfile(os.path.join(path, 'sudo')):
                     sudo_path = os.path.join(path, 'sudo')
             if sudo_path is None:
