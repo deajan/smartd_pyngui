@@ -122,20 +122,20 @@ class Configuration:
 
         # Contains smartd drive configurations
         self.config_list = {}
-        self.config_list['__spinning'] = None
-        self.config_list['__ssd'] = None
-        self.config_list['__nvme'] = None
-        self.config_list['__removable'] = None
+        self.config_list['__spinning'] = []
+        self.config_list['__ssd'] = []
+        self.config_list['__nvme'] = []
+        self.config_list['__removable'] = []
 
         # Contains smartd drive list per type (automatic detected by smartctl --scan or manual list)
         self.drive_list = {}
-        self.drive_list['__spinning'] = None
-        self.drive_list['__ssd'] = None
-        self.drive_list['__nvme'] = None
-        self.drive_list['__removable'] = None
+        self.drive_list['__spinning'] = []
+        self.drive_list['__ssd'] = []
+        self.drive_list['__nvme'] = []
+        self.drive_list['__removable'] = []
 
         # Contains smartd global alert configuration
-        self.config_list_alerts = None
+        self.config_list_alerts = []
 
         # Contains smartd_pyngui alert settings
         self.int_alert_config = scrambledconfigparser.ScrambledConfigParser()
@@ -234,14 +234,18 @@ class Configuration:
         self.drive_list['__nvme'] = ['DEVICESCAN']
         self.drive_list['__removable'] = ['DEVICESCAN']
 
-        self.config_list['__spinning'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-W 20,55,60', '-n sleep,7,q',
-                            '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
-        self.config_list['__ssd'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
-                            '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
-        self.config_list['__nvme'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
-                            '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
-        self.config_list['__removable'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
-                            '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
+        self.config_list['__spinning'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
+                                          '-W 20,55,60', '-n sleep,7,q',
+                                          '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
+        self.config_list['__ssd'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
+                                     '-n sleep,7,q',
+                                     '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
+        self.config_list['__nvme'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
+                                      '-n sleep,7,q',
+                                      '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
+        self.config_list['__removable'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
+                                           '-n sleep,7,q',
+                                           '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
 
         # Default behavior is to for smartmontools to launch this app with --alert
         self.config_list_alerts = ['-m <nomailer>', '-M exec "%s --alert"' % self.app_executable]
@@ -427,10 +431,13 @@ class MainGuiApp:
         # Tab content
         tab_layout = {}
         for drive_type in self.config.drive_types:
-            drive_selection = [[sg.Radio('Automatic', group_id='drive_detection' + drive_type, key='drive_auto' + drive_type, enable_events=True)],
-                               [sg.Radio('Manual drive list', group_id='drive_detection' + drive_type, key='drive_manual' + drive_type,
+            drive_selection = [[sg.Radio('Automatic', group_id='drive_detection' + drive_type,
+                                         key='drive_auto' + drive_type, enable_events=True)],
+                               [sg.Radio('Manual drive list', group_id='drive_detection' + drive_type,
+                                         key='drive_manual' + drive_type,
                                          enable_events=True, tooltip=self.manual_drive_list_tooltip),
-                                sg.Image(data=self.tooltip_image, key='manual_drive_list_tooltip' + drive_type, enable_events=True)]
+                                sg.Image(data=self.tooltip_image, key='manual_drive_list_tooltip' + drive_type,
+                                         enable_events=True)]
                                ]
             drive_list = [[sg.Multiline(size=(60, 6), key='drive_list' + drive_type, do_not_clear=True,
                                         background_color=self.color_grey_disabled)]]
@@ -440,7 +447,8 @@ class MainGuiApp:
 
             # Long self-tests
             long_test_time = [
-                [sg.T('Schedule a long test at '), sg.InputCombo(self.hours, key='long_test_hour' + drive_type), sg.T('H every')]]
+                [sg.T('Schedule a long test at '), sg.InputCombo(self.hours, key='long_test_hour' + drive_type),
+                 sg.T('H every')]]
             long_test_days = []
             for i in range(0, 7):
                 key = 'long_day_' + self.days[i] + drive_type
@@ -453,7 +461,8 @@ class MainGuiApp:
 
             # Short self-tests
             short_test_time = [
-                [sg.T('Schedule a short test at '), sg.InputCombo(self.hours, key='short_test_hour' + drive_type), sg.T('H every')]]
+                [sg.T('Schedule a short test at '), sg.InputCombo(self.hours, key='short_test_hour' + drive_type),
+                 sg.T('H every')]]
             short_test_days = []
             for i in range(0, 7):
                 key = 'short_day_' + self.days[i] + drive_type
@@ -490,11 +499,14 @@ class MainGuiApp:
                                                           [sg.T('Info log when temperature reached')],
                                                           [sg.T('Critical log when temperature reached')],
                                                           ]),
-                                               sg.Column([[sg.InputCombo(self.temperature_celsius, key='temp_diff' + drive_type,
+                                               sg.Column([[sg.InputCombo(self.temperature_celsius,
+                                                                         key='temp_diff' + drive_type,
                                                                          default_value='20')],
-                                                          [sg.InputCombo(self.temperature_celsius, key='temp_info' + drive_type,
+                                                          [sg.InputCombo(self.temperature_celsius,
+                                                                         key='temp_info' + drive_type,
                                                                          default_value='55')],
-                                                          [sg.InputCombo(self.temperature_celsius, key='temp_crit' + drive_type,
+                                                          [sg.InputCombo(self.temperature_celsius,
+                                                                         key='temp_crit' + drive_type,
                                                                          default_value='60')],
                                                           ]),
 
@@ -522,7 +534,6 @@ class MainGuiApp:
                                                                       self.spacer_tweak,
                                                                       ])]]
 
-            # TODO: use different key prefixes when generating this
             tab_layout[drive_type] = [
                 [sg.Column(drive_config)],
                 [sg.Column(long_tests), sg.Column(short_tests)],
@@ -540,11 +551,12 @@ class MainGuiApp:
         ]
 
         tabgroup = [[sg.Frame('Disk type options',
-            [
-                [sg.Checkbox('Use spinning disk settings for all disk types', default=False, key='global_settings',
-                             enable_events=True)],
-                [sg.TabGroup(tabs, pad=0)]
-            ])]]
+                              [
+                                  [sg.Checkbox('Use spinning disk settings for all disk types', default=False,
+                                               key='global_settings',
+                                               enable_events=True)],
+                                  [sg.TabGroup(tabs, pad=0)]
+                              ])]]
 
         full_layout = [
             [sg.Column(head_col)],
@@ -595,7 +607,7 @@ class MainGuiApp:
                         sg.PopupError('Cannot save configuration', icon=None)
                         logger.debug('Trace', exc_info=True)
                 break
-            if event == 'Exit':                      # Todo ask service reload and save question
+            if event == 'Exit':  # Todo ask service reload and save question
                 action = sg.Popup('Are you sure ?', custom_text=('Cancel', 'Exit'), icon=None)
                 if action == 'Cancel':
                     pass
@@ -693,7 +705,8 @@ class MainGuiApp:
                                 else:
                                     for day in day_list:
                                         if day.strip("[]").isdigit():
-                                            self.window.Element('long_day_' + self.days[int(day.strip("[]")) - 1] + drive_type).Update(
+                                            self.window.Element(
+                                                'long_day_' + self.days[int(day.strip("[]")) - 1] + drive_type).Update(
                                                 True)
                             if long_test.group(4):
                                 self.window.Element('long_test_hour' + drive_type).Update(long_test.group(4))
@@ -711,7 +724,8 @@ class MainGuiApp:
                                 else:
                                     for day in day_list:
                                         if day.strip("[]").isdigit():
-                                            self.window.Element('short_day_' + self.days[int(day.strip("[]")) - 1] + drive_type).Update(
+                                            self.window.Element(
+                                                'short_day_' + self.days[int(day.strip("[]")) - 1] + drive_type).Update(
                                                 True)
                             if short_test.group(4):
                                 self.window.Element('short_test_hour' + drive_type).Update(short_test.group(4))
@@ -732,7 +746,7 @@ class MainGuiApp:
             # Handle temperature specific cases
             for index, item in enumerate(config_list):
                 if item == '-I 194':
-                    self.window.Element('-I 194'+ drive_type).Update(True)
+                    self.window.Element('-I 194' + drive_type).Update(True)
                     config_list.pop(index)
                     break
 
@@ -859,7 +873,8 @@ class MainGuiApp:
                     if values[key]:
                         if key == '-W':
                             config_list.append(
-                                key + ' ' + str(values['temp_diff' + drive_type]) + ',' + str(values['temp_info' + drive_type]) + ',' + str(
+                                key + ' ' + str(values['temp_diff' + drive_type]) + ',' + str(
+                                    values['temp_info' + drive_type]) + ',' + str(
                                     values['temp_crit' + drive_type]))
                         elif key == '-I 194':
                             config_list.append(key)
@@ -1069,7 +1084,8 @@ class MainGuiApp:
 
         layout = [[sg.Column(full_layout, scrollable=True, vertical_scroll_only=True, size=(470, 550))],
                   [sg.T('')],
-                  [sg.T(' ' * 70), sg.Button('Save & trigger test alert'), self.button_spacer, sg.Button('Save & go back')]
+                  [sg.T(' ' * 70), sg.Button('Save & trigger test alert'), self.button_spacer,
+                   sg.Button('Save & go back')]
                   ]
 
         # Display the Window and get values
@@ -1147,8 +1163,8 @@ def system_service_handler(service, action):
     Returns True if action succeeded or service is running, False if service does not run
     """
 
-    loops = 0 # Number of seconds elapsed since we started Windows service
-    max_wait = 6 # Number of seconds we'll wait for Windows service to start
+    loops = 0  # Number of seconds elapsed since we started Windows service
+    max_wait = 6  # Number of seconds we'll wait for Windows service to start
 
     msg_already_running = "Service [%s] already running." % service
     msg_not_running = "Service [%s] is not running." % service
@@ -1156,8 +1172,6 @@ def system_service_handler(service, action):
     msg_success = "Action %s succeeded." % action
     msg_failure = "Action %s failed." % action
     msg_too_long = "Action %s took more than %s seconds and seems to have failed." % (action, max_wait)
-
-
 
     def nt_service_status(service):
         # Returns list. If second entry = 4, service is running
@@ -1187,7 +1201,7 @@ def system_service_handler(service, action):
                             return True
                         else:
                             sleep(2)
-                            loops+=2
+                            loops += 2
                     logger.error(msg_too_long)
                     raise Exception
                 except Exception:
@@ -1212,7 +1226,7 @@ def system_service_handler(service, action):
 
         elif action == "restart":
             system_service_handler(service, 'stop')
-            sleep(1) # arbitrary sleep between
+            sleep(1)  # arbitrary sleep between
             system_service_handler(service, 'start')
 
         elif action == "status":
@@ -1304,7 +1318,6 @@ def trigger_alert(config, mode=None):
         smtp_server = config.int_alert_config['ALERT']['SMTP_SERVER']
         smtp_port = config.int_alert_config['ALERT']['SMTP_PORT']
 
-
         try:
             smtp_user = config.int_alert_config['ALERT']['SMTP_USER']
         except KeyError:
@@ -1336,7 +1349,7 @@ def trigger_alert(config, mode=None):
                                                    smtp_port=smtp_port,
                                                    smtp_user=smtp_user, smtp_password=smtp_password, security=security,
                                                    subject=subject, attachment=attachment, filename='log.zip',
-                                                   body=warning_message, debug=True) # TODO remove debug True
+                                                   body=warning_message, debug=True)  # TODO remove debug True
                 # WIP
                 logger.info('Mailer result [%s].' % ret)
             # TODO smartctl output and env variables is needed to decorate error messages and get valid smartctl output
