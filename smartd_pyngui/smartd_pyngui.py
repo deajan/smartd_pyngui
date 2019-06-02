@@ -1299,6 +1299,19 @@ def trigger_alert(config, mode=None):
     smtp_server = None
     smtp_port = None
 
+    # Get environment variables set by smartd (see man smartd.conf)
+    smartd_info = {}
+    smartd_info['device'] = os.environ.get('SMARTD_DEVICE', 'Unknown')
+    smartd_info['devicetype'] = os.environ.get('SMARTD_DEVICETYPE', 'Unknown')
+    smartd_info['devicestring'] = os.environ.get('SMARTD_DEVICESTRING', 'Unknown')
+    smartd_info['deviceinfo'] = os.environ.get('SMARTD_DEVICEINFO', 'Unknown')
+    smartd_info['failtype'] = os.environ.get('SMARTD_FAILTYPE', 'Unknown')
+    smartd_info['first'] = os.environ.get('SMARTD_TFIRST', 'Unknown')
+    smartd_info['prevcnt'] = os.environ.get('SMARTD_PREVCNT' , 'Unknown')
+    smartd_info['nextdays'] = os.environ.get('SMARTD_NEXTDAYS', 'Unknown')
+
+    # TODO integrate smartd_info with warning message
+
     if mode == 'test':
         subject = 'Smartmontools email test'
         warning_message = "Smartmontools Alert Test"
