@@ -121,16 +121,18 @@ class Configuration:
         self.drive_types = ['__spinning', '__ssd', '__nvme', '__removable']
 
         # Contains smartd drive configurations
-        self.config_list_spinning_drives = None
-        self.config_list_ssd_drives = None
-        self.config_list_nvme_drives = None
-        self.config_list_removable_drives = None
+        self.config_list = {}
+        self.config_list['__spinning'] = None
+        self.config_list['__ssd'] = None
+        self.config_list['__nvme'] = None
+        self.config_list['__removable'] = None
 
         # Contains smartd drive list per type (automatic detected by smartctl --scan or manual list)
-        self.drive_list_spinning_drives = None
-        self.drive_list_ssd_drives = None
-        self.drive_list_nvme_drives = None
-        self.drive_list_removable_drives = None
+        self.drive_list = {}
+        self.drive_list['__spinning'] = None
+        self.drive_list['__ssd'] = None
+        self.drive_list['__nvme'] = None
+        self.drive_list['__removable'] = None
 
         # Contains smartd global alert configuration
         self.config_list_alerts = None
@@ -227,19 +229,22 @@ class Configuration:
             logger.debug('Found alert config file in [%s].' % self.alert_conf_file)
 
     def set_smartd_defaults(self):
-        self.drive_list = ['DEVICESCAN']
-        self.config_list_spinning_drives = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-W 20,55,60', '-n sleep,7,q',
+        self.drive_list['__spinning'] = ['DEVICESCAN']
+        self.drive_list['__ssd'] = ['DEVICESCAN']
+        self.drive_list['__nvme'] = ['DEVICESCAN']
+        self.drive_list['__removable'] = ['DEVICESCAN']
+
+        self.config_list['__spinning'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-W 20,55,60', '-n sleep,7,q',
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
-        self.config_list_ssd_drives = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
+        self.config_list['__ssd'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
-        self.config_list_nvme_drives = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
+        self.config_list['__nvme'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
-        self.config_list_removable_drives = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
+        self.config_list['__removable'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194', '-n sleep,7,q',
                             '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
 
         # Default behavior is to for smartmontools to launch this app with --alert
-        self.config_list_alerts.append('-m <nomailer>')
-        self.config_list_alerts.append('-M exec "%s --alert"' % self.app_executable)
+        self.config_list_alerts = ['-m <nomailer>', '-M exec "%s --alert"' % self.app_executable]
 
     def set_alert_defaults(self):
         self.int_alert_config.add_section('ALERT')
@@ -657,22 +662,22 @@ class MainGuiApp:
     def update_main_gui_config(self):
         for drive_type in self.config.drive_types:
             # Apply drive config
-            if self.config.drive_list == ['DEVICESCAN']:
+            if self.config.drive_list[drive_type] == ['DEVICESCAN']:
                 self.window.Element('drive_auto' + drive_type).Update(True)
             else:
                 self.window.Element('drive_manual' + drive_type).Update(True)
-                for drive in self.config.drive_list:
+                for drive in self.config.drive_list[drive_type]:
                     drives = drive + '\n'
                     self.window.Element('drive_list' + drive_type).Update(drives)
 
             # Self test regex GUI setup
-            if '-s' in '\t'.join(self.config.config_list):
-                for i, item in enumerate(self.config.config_list):
+            if '-s' in '\t'.join(self.config.config_list[drive_type]):
+                for i, item in enumerate(self.config.config_list[drive_type]):
                     if '-s' in item:
                         index = i
 
                         # TODO: Add other regex parameter here (group 1 & 2 missing)
-                        long_test = re.search('L/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[index])
+                        long_test = re.search('L/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[drive_type][index])
                         if long_test:
                             # print(long_test.group(1))
                             # print(long_test.group(2))
@@ -691,7 +696,7 @@ class MainGuiApp:
                             if long_test.group(4):
                                 self.window.Element('long_test_hour' + drive_type).Update(long_test.group(4))
 
-                        short_test = re.search('S/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[index])
+                        short_test = re.search('S/(.+?)/(.+?)/(.+?)/([0-9]*)', self.config.config_list[drive_type][index])
                         if short_test:
                             # print(short_test.group(1))
                             # print(short_test.group(2))
@@ -713,7 +718,7 @@ class MainGuiApp:
 
             # Attribute checks GUI setup
             for key, value in self.health_parameter_map:
-                if key in self.config.config_list:
+                if key in self.config.config_list[drive_type]:
                     self.window.Element(key + drive_type).Update(True)
                     # Handle specific dependancy cases (-C 197+ depends on -C 197 and -U 198+ depends on -U 198)
                     if key == '-C 197+':
@@ -722,7 +727,7 @@ class MainGuiApp:
                         self.window.Element('-U 198' + drive_type).Update(True)
 
             # Handle temperature specific cases
-            for item in self.config.config_list:
+            for item in self.config.config_list[drive_type]:
                 if re.match(r'^-W [0-9]{1,2},[0-9]{1,2},[0-9]{1,2}$', item):
                     self.window.Element('-W' + drive_type).Update(True)
                     temperatures = item.split(' ')[1]
@@ -731,12 +736,12 @@ class MainGuiApp:
                     self.window.Element('temp_info' + drive_type).Update(temperatures[1])
                     self.window.Element('temp_crit' + drive_type).Update(temperatures[2])
             # Energy saving GUI setup
-            if '-n' in '\t'.join(self.config.config_list):
-                for i, item in enumerate(self.config.config_list):
+            if '-n' in '\t'.join(self.config.config_list[drive_type]):
+                for i, item in enumerate(self.config.config_list[drive_type]):
                     if '-n' in item:
                         index = i
 
-                        energy_savings = self.config.config_list[index].split(',')
+                        energy_savings = self.config.config_list[drive_type][index].split(',')
                         for mode in self.energy_modes:
                             if mode in energy_savings[0]:
                                 self.window.Element('energy_mode' + drive_type).Update(mode)
@@ -755,16 +760,16 @@ class MainGuiApp:
 
         # By default, let's assume we use the internal mailer
         v = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
-        for index, value in enumerate(self.config.config_list):
+        for index, value in enumerate(self.config.config_list_alerts):
             if '-M exec' in value:
-                ext_script = self.config.config_list[index].replace('-M exec ', '', 1)
+                ext_script = self.config.config_list_alerts[index].replace('-M exec ', '', 1)
                 if APP_NAME in ext_script:
                     v = {'use_internal_alert': True, 'use_system_mailer': False, 'use_external_script': False}
                 else:
                     v = {'use_internal_alert': False, 'use_system_mailer': False, 'use_external_script': True}
                     self.window.Element('external_script_path').Update(ext_script)
             elif '-m' in value:
-                mail_addresses = self.config.config_list[index].replace('-m ', '', 1)
+                mail_addresses = self.config.config_list_alerts[index].replace('-m ', '', 1)
                 self.window.Element('mail_addresses').Update(mail_addresses)
                 v = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
         self.alert_switcher(v)
@@ -923,18 +928,8 @@ class MainGuiApp:
 
             logger.debug(drive_list)
             logger.debug(config_list)
-            if drive_type == '__spinning':
-                self.config.drive_list_spinning_drives = drive_list
-                self.config.config_list_spinning_drive = config_list
-            elif drive_type == '__ssd':
-                self.config.drive_list_ssd_drives = drive_list
-                self.config.config_list_ssd__drive = config_list
-            elif drive_type == '__nvme':
-                self.config.drive_list_nvme_drives = drive_list
-                self.config.config_list_nvme_drive = config_list
-            elif drive_type == '__removable':
-                self.config.drive_list_removable_drive = drive_list
-                self.config.config_list_removable_drive = config_list
+            self.config.drive_list[drive_type] = drive_list
+            self.config.config_list[drive_type] = config_list
 
         config_list_alerts = []
 
@@ -1379,8 +1374,9 @@ def main(argv):
 
     try:
         config.read_smartd_conf_file()
-        logger.debug(str(config.drive_list))
-        logger.debug(str(config.config_list))
+        for drive_type in config.drive_types:
+            logger.debug('Drive list for %s\n:%s' % (drive_type, config.drive_list[drive_type]))
+            logger.debug('Config for %s\n:%s' % (drive_type, config.config_list[drive_type]))
     except Exception:
         logger.info('Using default smartd configuration.')
 
