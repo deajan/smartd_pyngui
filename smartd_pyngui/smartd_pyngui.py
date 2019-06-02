@@ -238,13 +238,13 @@ class Configuration:
                                           '-W 20,55,60', '-n sleep,7,q',
                                           '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
         self.config_list['__ssd'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
-                                     '-n sleep,7,q',
+                                     '-W 40,65,75', '-n sleep,7,q',
                                      '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
         self.config_list['__nvme'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
-                                      '-n sleep,7,q',
+                                      '-W 40,80,85', '-n sleep,7,q',
                                       '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
         self.config_list['__removable'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
-                                           '-n sleep,7,q',
+                                           '-W 20,55,60', '-n sleep,7,q',
                                            '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
 
         # Default behavior is to for smartmontools to launch this app with --alert
