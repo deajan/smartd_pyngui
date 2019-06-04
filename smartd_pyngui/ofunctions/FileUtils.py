@@ -10,7 +10,7 @@ from fnmatch import fnmatch
 from contextlib import contextmanager
 from threading import Lock
 
-BUILD = '2019052101'
+BUILD = '2019060401'
 
 file_lock_token = None
 
@@ -54,7 +54,7 @@ def glob_path_match(path, pattern_list):
     :param pattern_list: list of wildcard patterns to check for
     :return: Boolean
     """
-    return any(fnmatch(os.path.basename(path), pattern) for pattern in pattern_list)
+    return any(fnmatch(path, pattern) for pattern in pattern_list)
 
 
 def get_files_recursive(root, d_exclude_list=None, f_exclude_list=None, ext_exclude_list=None, primary_root=None):
