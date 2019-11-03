@@ -673,7 +673,8 @@ class MainGuiApp:
 
     def update_main_gui_config(self):
         for drive_type in self.config.drive_types:
-            # Apply drive config
+            print(drive_type)
+            print(self.config.drive_list)
             if self.config.drive_list[drive_type] == ['DEVICESCAN']:
                 self.window.Element('drive_auto' + drive_type).Update(True)
             else:
