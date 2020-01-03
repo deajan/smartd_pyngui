@@ -118,10 +118,13 @@ class Configuration:
         self.smart_conf_file = None
         self.alert_conf_file = None
 
-        self.drive_types = ['__spinning', '__ssd', '__nvme', '__removable']
+        # Drive types
+        # Default gets populated when no other configs exist
+        self.drive_types = ['default', '__spinning', '__ssd', '__nvme', '__removable']
 
         # Contains smartd drive configurations
         self.config_list = {}
+        self.config_list['default'] = []
         self.config_list['__spinning'] = []
         self.config_list['__ssd'] = []
         self.config_list['__nvme'] = []
@@ -129,6 +132,7 @@ class Configuration:
 
         # Contains smartd drive list per type (automatic detected by smartctl --scan or manual list)
         self.drive_list = {}
+        self.drive_list['default'] = []
         self.drive_list['__spinning'] = []
         self.drive_list['__ssd'] = []
         self.drive_list['__nvme'] = []
@@ -272,7 +276,7 @@ class Configuration:
             with open(conf_file, 'r') as fp:
 
                 try:
-                    drive_list = []
+                    drive_list = {}
                     for line in fp.readlines():
                         if not line[0] == "#" and line[0] != "\n" and line[0] != "\r" and line[0] != " ":
                             config_list = line.split(' -')
@@ -280,7 +284,7 @@ class Configuration:
                             # Remove unnecessary blanks and newlines
                             for i, _ in enumerate(config_list):
                                 config_list[i] = config_list[i].strip()
-                            drive_list.append(config_list[0])
+                            #drive_list.append(config_list[0]) #WIP#TODO
                             del config_list[0]
 
                     self.drive_list = drive_list
@@ -439,9 +443,9 @@ class MainGuiApp:
                                 sg.Image(data=self.tooltip_image, key='manual_drive_list_tooltip' + drive_type,
                                          enable_events=True)]
                                ]
-            drive_list = [[sg.Multiline(size=(60, 6), key='drive_list' + drive_type, do_not_clear=True,
+            drive_list_widget = [[sg.Multiline(size=(60, 6), key='drive_list_widget' + drive_type, do_not_clear=True,
                                         background_color=self.color_grey_disabled)]]
-            drive_config = [[sg.Frame('Drive detection', [[sg.Column(drive_selection), sg.Column(drive_list)],
+            drive_config = [[sg.Frame('Drive detection', [[sg.Column(drive_selection), sg.Column(drive_list_widget)],
                                                           self.spacer_tweak,
                                                           ])]]
 
@@ -624,9 +628,9 @@ class MainGuiApp:
                     sg.PopupError('Cannot save configuration', icon=None)
                     logger.debug('Trace', exc_info=True)
             elif event == 'drive_auto':
-                self.window.Element('drive_list').Update(disabled=True, background_color=self.color_grey_disabled)
+                self.window.Element('drive_list_widget').Update(disabled=True, background_color=self.color_grey_disabled)
             elif event == 'drive_manual':
-                self.window.Element('drive_list').Update(disabled=False, background_color=self.color_green_enabled)
+                self.window.Element('drive_list_widget').Update(disabled=False, background_color=self.color_green_enabled)
             elif event == 'use_system_mailer' or event == 'use_internal_alert' or event == 'use_external_script':
                 self.alert_switcher(values)
             elif event == 'smart_conf_file':
@@ -675,15 +679,24 @@ class MainGuiApp:
         for drive_type in self.config.drive_types:
             print(drive_type)
             print(self.config.drive_list)
-            if self.config.drive_list[drive_type] == ['DEVICESCAN']:
-                self.window.Element('drive_auto' + drive_type).Update(True)
-            else:
-                self.window.Element('drive_manual' + drive_type).Update(True)
-                for drive in self.config.drive_list[drive_type]:
-                    drives = drive + '\n'
-                    self.window.Element('drive_list' + drive_type).Update(drives)
+            print(type(self.config.drive_list))
 
-            config_list = self.config.config_list[drive_type]
+            try:
+                if self.config.drive_list[drive_type] == ['DEVICESCAN']:
+                    self.window.Element('drive_auto' + drive_type).Update(True)
+                else:
+                    self.window.Element('drive_manual' + drive_type).Update(True)
+                    for drive in self.config.drive_list[drive_type]:
+                        drives = drive + '\n'
+                        self.window.Element('drive_list' + drive_type).Update(drives)
+            except KeyError:
+                logger.error('No drive set yet')
+
+            try:
+                config_list = self.config.config_list[drive_type]
+            except TypeError:
+                # No values vto set in gui
+                break
 
             # Self test regex GUI setup
             if '-s' in '\t'.join(config_list):
@@ -804,18 +817,19 @@ class MainGuiApp:
 
     def get_main_gui_config(self, values):
         for drive_type in self.config.drive_types:
-            drive_list = []
-            config_list = []
+            drive_list = {}
+            config_list = {}
 
             if values['drive_auto' + drive_type] is True:
-                drive_list.append('DEVICESCAN')
+                #drive_list.append('DEVICESCAN') #WIP#TODO
+                pass
             else:
                 drive_list = values['drive_list' + drive_type].split()
 
                 # TODO: better bogus pattern detection
                 # TODO: needs to raise exception
 
-                if drive_list == []:
+                if drive_list == {}:
                     msg = "Drive list is empty"
                     logger.error(msg)
                     sg.PopupError(msg)
