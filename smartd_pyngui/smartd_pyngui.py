@@ -7,7 +7,6 @@
 
 import os
 import sys
-# import getopt
 import platform  # Detect OS
 import re  # Regex handling
 from time import sleep
@@ -17,11 +16,6 @@ import zlib
 import ofunctions
 import ofunctions.Mailer
 import scrambledconfigparser
-
-# On Windows nuitka distribs, set the tkinter library path below the distribution
-if sys.argv[0].endswith(".exe") or sys.argv[0].endswith(".EXE"):
-    os.environ['TCL_LIBRARY'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.sep + 'tcl'
-    os.environ['TK_LIBRARY'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.sep + 'tk'
 
 import PySimpleGUI as sg
 
@@ -33,6 +27,11 @@ if os.name == 'nt':
     import win32process  # monitor process
     from win32com.shell.shell import ShellExecuteEx
     from win32com.shell import shellcon
+
+# On Windows nuitka distribs, set the tkinter library path below the distribution
+if sys.argv[0].endswith(".exe") or sys.argv[0].endswith(".EXE"):
+    os.environ['TCL_LIBRARY'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.sep + 'tcl'
+    os.environ['TK_LIBRARY'] = os.path.abspath(os.path.dirname(sys.argv[0])) + os.sep + 'tk'
 
 # BASIC FUNCTIONS & DEFINITIONS #########################################################################
 
@@ -52,17 +51,13 @@ ALERT_CONF_FILENAME = APP_NAME + '_alerts.conf'
 
 DEFAULT_UNIX_PATH = '/etc/smartd'
 
-IS_STABLE = False  # TODO PROD
+IS_STABLE = False
 
-# FreeArt fa9737100
-ICON_FILE = b'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\n'
-# ICON_FILE='smartd_pyngui.ico'
+from icon import ICON_FILE, TOOLTIP_IMAGE
 
-# Generate key via c = ScrambledConfigParser()
-# c.generate_key()
-AES_ENCRYPTION_KEY = b'*\xc2\xc8\x93Ob\xa6-\xcfq5\x8e\xe9V7\xba\x17\xc0dq\xaa\xfa5\x92\xa1\xf86\x97\x1e\x1e\x00\x07'
+from aes_key import AES_ENCRYPTION_KEY
 
-#### DEV NOTES ###############################################################################################
+# DEV NOTES ###############################################################################################
 
 # TODO: get smartd version in order to enable / disable various features
 # TODO: improve smartd.conf syntax
@@ -281,10 +276,10 @@ class Configuration:
                         if not line[0] == "#" and line[0] != "\n" and line[0] != "\r" and line[0] != " ":
                             config_list = line.split(' -')
                             config_list = [config_list[0]] + ['-' + item for item in config_list[1:]]
-                            # Remove unnecessary blanks and newlines
+                            #  Remove unnecessary blanks and newlines
                             for i, _ in enumerate(config_list):
                                 config_list[i] = config_list[i].strip()
-                            #drive_list.append(config_list[0]) #WIP#TODO
+                            #  drive_list.append(config_list[0]) #WIP#TODO
                             del config_list[0]
 
                     self.drive_list = drive_list
@@ -389,19 +384,23 @@ class MainGuiApp:
                                           ('-W', 'Report temperature thresholds'),
                                           ]
 
-        self.manual_drive_list_tooltip = 'Even under Windows, smartd addresses disks as \'/dev/sda /dev/sdb ... /dev/sdX\'\n' \
-                                         'Intel raid drives are addresses as /dev/csmiX,Y where X is the controller number\n' \
-                                         'and Y is the drive number. See smartd documentation for more.\n' \
-                                         'Example working config:\n' \
-                                         '\n' \
-                                         '/dev/sda\n' \
-                                         '/dev/sdb\n' \
-                                         '/dev/csmi0,1'
+        self.manual_drive_list_tooltip = \
+            'Even under Windows, smartd addresses disks as \'/dev/sda /dev/sdb ... /dev/sdX\'\n' \
+            'Intel raid drives are addresses as /dev/csmiX,Y where X is the controller number\n' \
+            'and Y is the drive number. See smartd documentation for more.\n' \
+            'Example working config:\n' \
+            '\n' \
+            '/dev/sda\n' \
+            '/dev/sdb\n' \
+            '/dev/csmi0,1'
 
-        self.tooltip_image = b'R0lGODlhFAAUAPcAAAAAAAEBAQICAgMDAwYGBggICAkJCQoKCgwMDA4ODhAQEBQUFBoaGhsbGxwcHB0dHR4eHh8fHyAgICEhISIiIiMjIyYmJioqKi4uLjIyMjU1NTg4OEVFRU5OTk9PT1BQUFJSUlRUVFVVVVZWVldXV1hYWGBgYGdnZ2lpaWpqamxsbG1tbW5ubm9vb3h4eAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAAP8ALAAAAAAUABQAAAifAP8JHPhvBAUDBiiMIMhwYIQAECNChNBQYAuJGCOuYHgxo8eNAzEeINgBo0OT/y4wELhB4gOBGQUKCBBS4j8SGQssgCjQBcYQFTxCxCBwAkYJBoQOEMghI4GkHkH8y+CRAAWhJlgIjSBCqNcAUj0qEAgV5YOMKgSWyNigpkQNAi3EHJgiYwIEGU8wRPEVot6KDYSurEjwg4MBAxx4qBgQADs=\n'
+        self.tooltip_image = TOOLTIP_IMAGE
 
         self.spacer_tweak = [sg.T(' ' * 702, font=('Helvetica', 1))]
         self.button_spacer = sg.T(' ' * 10, font=('Helvetica', 1))
+
+        self.window = None
+        self.alert_window = None
 
         self.main_gui()
 
@@ -444,7 +443,7 @@ class MainGuiApp:
                                          enable_events=True)]
                                ]
             drive_list_widget = [[sg.Multiline(size=(60, 6), key='drive_list_widget' + drive_type, do_not_clear=True,
-                                        background_color=self.color_grey_disabled)]]
+                                               background_color=self.color_grey_disabled)]]
             drive_config = [[sg.Frame('Drive detection', [[sg.Column(drive_selection), sg.Column(drive_list_widget)],
                                                           self.spacer_tweak,
                                                           ])]]
@@ -628,9 +627,11 @@ class MainGuiApp:
                     sg.PopupError('Cannot save configuration', icon=None)
                     logger.debug('Trace', exc_info=True)
             elif event == 'drive_auto':
-                self.window.Element('drive_list_widget').Update(disabled=True, background_color=self.color_grey_disabled)
+                self.window.Element('drive_list_widget').Update(disabled=True,
+                                                                background_color=self.color_grey_disabled)
             elif event == 'drive_manual':
-                self.window.Element('drive_list_widget').Update(disabled=False, background_color=self.color_green_enabled)
+                self.window.Element('drive_list_widget').Update(disabled=False,
+                                                                background_color=self.color_green_enabled)
             elif event == 'use_system_mailer' or event == 'use_internal_alert' or event == 'use_external_script':
                 self.alert_switcher(values)
             elif event == 'smart_conf_file':
@@ -672,7 +673,7 @@ class MainGuiApp:
             self.window.Element('external_script_path').Update(disabled=False)
 
     @staticmethod
-    def spacer_tweakf(self, pixels=10):
+    def spacer_tweakf(pixels=10):
         return [sg.T(' ' * pixels, font=('Helvetica', 1))]
 
     def update_main_gui_config(self):
@@ -821,7 +822,7 @@ class MainGuiApp:
             config_list = {}
 
             if values['drive_auto' + drive_type] is True:
-                #drive_list.append('DEVICESCAN') #WIP#TODO
+                # drive_list.append('DEVICESCAN') #WIP#TODO
                 pass
             else:
                 drive_list = values['drive_list' + drive_type].split()
@@ -959,7 +960,6 @@ class MainGuiApp:
 
                 if tests_regex is not None:
                     config_list.append(tests_regex)
-
 
             except Exception as e:
                 msg = 'Test regex creation error'
@@ -1322,7 +1322,7 @@ def trigger_alert(config, mode=None):
     smartd_info['deviceinfo'] = os.environ.get('SMARTD_DEVICEINFO', 'Unknown')
     smartd_info['failtype'] = os.environ.get('SMARTD_FAILTYPE', 'Unknown')
     smartd_info['first'] = os.environ.get('SMARTD_TFIRST', 'Unknown')
-    smartd_info['prevcnt'] = os.environ.get('SMARTD_PREVCNT' , 'Unknown')
+    smartd_info['prevcnt'] = os.environ.get('SMARTD_PREVCNT', 'Unknown')
     smartd_info['nextdays'] = os.environ.get('SMARTD_NEXTDAYS', 'Unknown')
 
     # TODO integrate smartd_info with warning message
@@ -1424,7 +1424,7 @@ def main(argv):
     if IS_STABLE is False:
         logger.warning("Warning: This is an unstable developpment version.")
 
-    # sg.ChangeLookAndFeel('Reds')
+    sg.ChangeLookAndFeel('LightGrey')
     sg.SetOptions(element_padding=(0, 0), font=('Helvetica', 9), margins=(2, 1), icon=ICON_FILE)
 
     config = Configuration()
@@ -1490,6 +1490,8 @@ if __name__ == '__main__':
         # Let's assume this will only be compiled with newer nuitka, and remove sloppy detections
         try:
             # Actual if statement not needed, but keeps code inspectors more happy
+            # This only exists when built with nuitka
+            # noinspection PyUnresolvedReferences
             if __nuitka_binary_dir is not None:
                 is_nuitka_compiled = True
         except NameError:
