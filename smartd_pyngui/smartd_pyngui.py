@@ -38,10 +38,10 @@ if sys.argv[0].endswith(".exe") or sys.argv[0].endswith(".EXE"):
 
 APP_NAME = 'smartd_pyngui'  # Stands for smart daemon python native gui
 APP_VERSION = '0.8-dev'
-APP_BUILD = '2019052401'
+APP_BUILD = '2020010401'
 APP_DESCRIPTION = 'smartd v5.4+ configuration interface'
 CONTACT = 'ozy@netpower.fr - http://www.netpower.fr'
-COPYING = 'Written in 2012-2019'
+COPYING = 'Written in 2012-2020'
 AUTHOR = 'Orsiris de Jong'
 
 LOG_FILE = APP_NAME + '.log'
@@ -337,7 +337,7 @@ class Configuration:
                             #  Remove unnecessary blanks and newlines
                             for i, _ in enumerate(config_list):
                                 config_list[i] = config_list[i].strip()
-                            drive_list.append(config_list[0]) #WIP#TODO
+                            drive_list.append(config_list[0])
                             del config_list[0]
 
                     # Detect conf file format to know which parameters for which drive types to assign
@@ -461,9 +461,6 @@ class MainGuiApp:
 
         self.tooltip_image = TOOLTIP_IMAGE
 
-        #self.spacer_tweak = [sg.T(' ' * 702, font=('Helvetica', 1))]
-        self.button_spacer = sg.T(' ' * 10, font=('Helvetica', 1))
-
         self.window = None
         self.alert_window = None
 
@@ -491,7 +488,7 @@ class MainGuiApp:
                   [sg.Radio('Use the following external alert handling script', group_id='alerts',
                             key='use_external_script', default=False, enable_events=True)],
                   [sg.InputText(key='external_script_path', size=(90, 1), do_not_clear=True), self.spacer_tweakf(),
-                   sg.FileBrowse()],
+                   sg.FileBrowse(target='external_script_path')],
                   ]
         alert_options = [[sg.Frame('Alert actions', [[sg.Column(alerts)],
                                                      [self.spacer_tweakf(720)],
@@ -635,8 +632,8 @@ class MainGuiApp:
 
         layout = [[sg.Column(full_layout, scrollable=True, vertical_scroll_only=True, size=(740, 550))],
                   [sg.T('')],
-                  [self.spacer_tweakf(160), sg.Button('Show disk detection'), self.spacer_tweakf(), sg.Button('Save changes'),
-                   self.spacer_tweakf(), sg.Button('Reload smartd service'),
+                  [self.spacer_tweakf(160), sg.Button('Show disk detection'), self.spacer_tweakf(),
+                   sg.Button('Save changes'),self.spacer_tweakf(), sg.Button('Reload smartd service'),
                    self.spacer_tweakf(), sg.Button('Exit')]
                   ]
 
@@ -706,10 +703,12 @@ class MainGuiApp:
                 self.alert_switcher(values)
             elif event == 'smart_conf_file':
                 ret = self.config.read_smartd_conf_file(values['smart_conf_file'])
+                sg.Popup(ret)
                 if ret is True:
                     self.update_main_gui_config()
                     current_conf_file = values['smart_conf_file']
                 else:
+                    sg.PopupAnnoying()
                     self.window.Element('smart_conf_file').Update(current_conf_file)
             elif 'manual_drive_list_tooltip' in event:
                 sg.Popup(self.manual_drive_list_tooltip)
@@ -1116,8 +1115,8 @@ class MainGuiApp:
                     [sg.Frame('Configuration file',
                               [[sg.InputText('', key='conf_file',
                                              enable_events=True, do_not_clear=True, size=(55, 1)),
-                                self.button_spacer, sg.FileBrowse(target='conf_file')],
-                               self.spacer_tweak,
+                                self.spacer_tweakf(), sg.FileBrowse(target='conf_file')],
+                               [self.spacer_tweakf(500)],
                                ])]
                     ]
 
@@ -1151,12 +1150,14 @@ class MainGuiApp:
                                                ]),
 
                                            ],
+                                           [self.spacer_tweakf(550)],
                                            ],
                                           )]]
 
         local_alert_settings = [[sg.Frame('Local alert settings',
-                                          [[sg.Checkbox('Send local alerts on screen', key='LOCAL_ALERT')],
-                                           self.spacer_tweak
+                                          [[sg.Checkbox('Send local alerts on screen / RDS Session',
+                                                        key='LOCAL_ALERT')],
+                                           [self.spacer_tweakf(600)],
                                            ],
                                           )]]
         full_layout = [
@@ -1168,7 +1169,7 @@ class MainGuiApp:
 
         layout = [[sg.Column(full_layout, scrollable=True, vertical_scroll_only=True, size=(470, 550))],
                   [sg.T('')],
-                  [sg.T(' ' * 70), sg.Button('Save & trigger test alert'), self.button_spacer,
+                  [sg.T(' ' * 70), sg.Button('Save & trigger test alert'), self.spacer_tweakf(),
                    sg.Button('Save & go back')]
                   ]
 
@@ -1238,7 +1239,8 @@ class MainGuiApp:
                 value = 'yes'
             elif value == False:
                 value = 'no'
-            self.config.int_alert_config['ALERT'][key] = value
+            if key != 'Browse' and key != 'conf_file' and key != 'useSmtpAuth':
+                self.config.int_alert_config['ALERT'][key] = value
 
 
 def system_service_handler(service, action):
