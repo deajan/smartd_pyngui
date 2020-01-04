@@ -107,19 +107,6 @@ def get_disk_types():
         return None
     else:
         disks = json.loads(output)
-        """
-        # When running Windows, EOL char is \r\n, we'll just keep \n as it will work un *nix too
-        for line in output.split('\n'):
-            disk = line.split(' ')
-            if not disk[0].startswith('/dev'):
-                break
-            # Before adding disks to disk list, we need to check whether the SMART attributes can be read
-            # This is specially usefull to filter raid member drives
-
-            
-            disks.append([disk[0], disk[2]])
-        print(disks)
-        """
         for disk in disks['devices']:
             # Before adding disks to disk list, we need to check whether the SMART attributes can be read
             # This is specially usefull to filter raid member drives
@@ -133,18 +120,24 @@ def get_disk_types():
                 # disk['type'] is already correct for nvme disks
 
                 disk_detail = json.loads(output)
-                # Determnie if disk is spinning
-                try:
-                    if disk_detail['rotation_rate'] == 'Solid State Device':
-                        disk['dtype'] = 'ssd'
-                    elif int(disk_detail['rotation_state']) != 0:
-                        disk['dtype'] = 'spinning'
-                except (TypeError, KeyError):
-                    pass
 
-                # set dtype for nvme disks
-                if disk['type'] == 'nvme':
-                    disk['dtype'] = 'nvme'
+                try:
+                    # set dtype for nvme disks
+                    if disk['type'] == 'nvme':
+                        disk['disk_type'] = 'nvme'
+                    # Determnie if disk is spinning
+                    elif disk_detail['rotation_rate'] == 'Solid State Device':
+                        disk['disk_type'] = 'ssd'
+                    elif int(disk_detail['rotation_rate']) != 0:
+                        disk['disk_type'] = 'spinning'
+                    else:
+                        disk['disk_type'] = 'unknown'
+                except (TypeError, KeyError):
+                    disk['disk_type'] = 'unknown'
+                    logger.debug('Trace', exc_info=True)
+
+
+
 
             disk_list.append(disk)
         return disk_list
@@ -186,7 +179,6 @@ class Configuration:
 
         # Contains smartd drive configurations
         self.config_list = {}
-        self.config_list['default'] = []
         self.config_list['__spinning'] = []
         self.config_list['__ssd'] = []
         self.config_list['__nvme'] = []
@@ -194,7 +186,6 @@ class Configuration:
 
         # Contains smartd drive list per type (automatic detected by smartctl --scan or manual list)
         self.drive_list = {}
-        self.drive_list['default'] = []
         self.drive_list['__spinning'] = []
         self.drive_list['__ssd'] = []
         self.drive_list['__nvme'] = []
@@ -338,7 +329,7 @@ class Configuration:
             with open(conf_file, 'r') as fp:
 
                 try:
-                    drive_list = {}
+                    drive_list = []
                     for line in fp.readlines():
                         if not line[0] == "#" and line[0] != "\n" and line[0] != "\r" and line[0] != " ":
                             config_list = line.split(' -')
@@ -349,8 +340,11 @@ class Configuration:
                             drive_list.append(config_list[0]) #WIP#TODO
                             del config_list[0]
 
-                    self.drive_list = drive_list
-                    self.config_list = config_list
+                    # Detect conf file format to know which parameters for which drive types to assign
+                    # WIP TODO
+
+                    self.drive_list['__spinning'] = drive_list
+                    self.config_list['__spinning'] = config_list
                     self.smart_conf_file = conf_file
                     return True
                 except Exception:
@@ -453,7 +447,7 @@ class MainGuiApp:
 
         self.manual_drive_list_tooltip = \
             'Even under Windows, smartd addresses disks as \'/dev/sda /dev/sdb ... /dev/sdX\'\n' \
-            'Intel raid drives are addresses as /dev/csmiX,Y where X is the controller number\n' \
+            'Intel & AMD raid drives are addresses as /dev/csmiX,Y where X is the controller number\n' \
             'and Y is the drive number. See smartd documentation for more.\n' \
             'Example working config:\n' \
             '\n' \
@@ -461,9 +455,13 @@ class MainGuiApp:
             '/dev/sdb\n' \
             '/dev/csmi0,1'
 
+        self.disk_types = \
+            'Disk detection:\n\nDisk types are nvme, ssd or spinning.' \
+            'Unknown disk types maybe raid members or smart unaware disks.\n\n'
+
         self.tooltip_image = TOOLTIP_IMAGE
 
-        self.spacer_tweak = [sg.T(' ' * 702, font=('Helvetica', 1))]
+        #self.spacer_tweak = [sg.T(' ' * 702, font=('Helvetica', 1))]
         self.button_spacer = sg.T(' ' * 10, font=('Helvetica', 1))
 
         self.window = None
@@ -477,25 +475,26 @@ class MainGuiApp:
         head_col = [[sg.Text(APP_DESCRIPTION)],
                     [sg.Frame('Configuration file', [[sg.InputText(self.config.smart_conf_file, key='smart_conf_file',
                                                                    enable_events=True, do_not_clear=True, size=(80, 1)),
-                                                      self.button_spacer, sg.FileBrowse(target='smart_conf_file'),
-                                                      self.button_spacer, sg.Button('Raw view', key='raw_view')],
-                                                     self.spacer_tweak,
+                                                      self.spacer_tweakf(), sg.FileBrowse(target='smart_conf_file'),
+                                                      self.spacer_tweakf(), sg.Button('Raw view', key='raw_view')],
+                                                     [self.spacer_tweakf(720)],
                                                      ])],
                     ]
 
         # Email options
         alerts = [[sg.Radio('Use %s internal alert system' % APP_NAME, group_id='alerts', key='use_internal_alert',
-                            default=True, enable_events=True), sg.Button('Configure')],
+                            default=True, enable_events=True), self.spacer_tweakf(), sg.Button('Configure')],
                   [sg.Radio('Use system mail command to send alerts to the following addresses'
                             ' (comma separated list) on Unixes',
                             group_id='alerts', key='use_system_mailer', default=False, enable_events=True)],
                   [sg.InputText(key='mail_addresses', size=(98, 1), do_not_clear=True)],
                   [sg.Radio('Use the following external alert handling script', group_id='alerts',
                             key='use_external_script', default=False, enable_events=True)],
-                  [sg.InputText(key='external_script_path', size=(90, 1), do_not_clear=True), sg.FileBrowse()],
+                  [sg.InputText(key='external_script_path', size=(90, 1), do_not_clear=True), self.spacer_tweakf(),
+                   sg.FileBrowse()],
                   ]
         alert_options = [[sg.Frame('Alert actions', [[sg.Column(alerts)],
-                                                     self.spacer_tweak,
+                                                     [self.spacer_tweakf(720)],
                                                      ])]]
 
         # Tab content
@@ -512,7 +511,7 @@ class MainGuiApp:
             drive_list_widget = [[sg.Multiline(size=(60, 6), key='drive_list_widget' + drive_type, do_not_clear=True,
                                                background_color=self.color_grey_disabled)]]
             drive_config = [[sg.Frame('Drive detection', [[sg.Column(drive_selection), sg.Column(drive_list_widget)],
-                                                          self.spacer_tweak,
+                                                          [self.spacer_tweakf(702)],
                                                           ])]]
 
             # Long self-tests
@@ -526,7 +525,7 @@ class MainGuiApp:
             long_test_days = [long_test_days]
             long_tests = [[sg.Frame('Scheduled long self-tests', [[sg.Column(long_test_time)],
                                                                   [sg.Column(long_test_days)],
-                                                                  self.spacer_tweakf(343),
+                                                                  [self.spacer_tweakf(343)],
                                                                   ])]]
 
             # Short self-tests
@@ -540,7 +539,7 @@ class MainGuiApp:
             short_test_days = [short_test_days]
             short_tests = [[sg.Frame('Scheduled short self-tests', [[sg.Column(short_test_time)],
                                                                     [sg.Column(short_test_days)],
-                                                                    self.spacer_tweakf(343),
+                                                                    [self.spacer_tweakf(343)],
                                                                     ])]]
 
             # Attribute checks
@@ -556,7 +555,7 @@ class MainGuiApp:
 
             attributes_check = [
                 [sg.Frame('Smart health Checks', [[sg.Column(smart_health_col1), sg.Column(smart_health_col2)],
-                                                  self.spacer_tweak,
+                                                  [self.spacer_tweakf(702)],
                                                   ])]]
 
             # Temperature checks
@@ -581,7 +580,7 @@ class MainGuiApp:
                                                           ]),
 
                                                ],
-                                              self.spacer_tweak,
+                                              [self.spacer_tweakf(702)],
                                               ],
                                              )]]
 
@@ -593,7 +592,7 @@ class MainGuiApp:
                               [sg.InputCombo(["%.1d" % i for i in range(8)], key='energy_skips' + drive_type)],
                               ]
             energy_options = [[sg.Frame('Energy saving', [[sg.Column(energy_text), sg.Column(energy_choices)],
-                                                          self.spacer_tweak,
+                                                          [self.spacer_tweakf(702)],
                                                           ])]]
 
             # Supplementary options
@@ -601,7 +600,7 @@ class MainGuiApp:
                 [sg.InputText(key='supplementary_options' + drive_type, size=(98, 1), do_not_clear=True)]]
 
             sup_options = [[sg.Frame('Supplementary smartd options', [[sg.Column(sup_options_col)],
-                                                                      self.spacer_tweak,
+                                                                      [self.spacer_tweakf(702)],
                                                                       ])]]
 
             tab_layout[drive_type] = [
@@ -634,17 +633,18 @@ class MainGuiApp:
             [sg.Column(tabgroup)],
         ]
 
-        layout = [[sg.Column(full_layout, scrollable=True, vertical_scroll_only=True, size=(722, 550))],
+        layout = [[sg.Column(full_layout, scrollable=True, vertical_scroll_only=True, size=(740, 550))],
                   [sg.T('')],
-                  [sg.T(' ' * 70), sg.Button('Save changes'), self.button_spacer, sg.Button('Reload smartd service'),
-                   self.button_spacer, sg.Button('Exit')]
+                  [self.spacer_tweakf(160), sg.Button('Show disk detection'), self.spacer_tweakf(), sg.Button('Save changes'),
+                   self.spacer_tweakf(), sg.Button('Reload smartd service'),
+                   self.spacer_tweakf(), sg.Button('Exit')]
                   ]
 
         # Display the Window and get values
 
         try:
             self.window = sg.Window(APP_NAME + ' - ' + APP_VERSION + ' ' + APP_BUILD, icon=ICON_FILE, resizable=True,
-                                    size=(750, 600),
+                                    size=(766, 600),
                                     text_justification='left').Layout(layout)
         except Exception as e:
             logger.critical(e)
@@ -684,6 +684,8 @@ class MainGuiApp:
                     pass
                 elif action == 'Exit':
                     break
+            elif event == 'Show disk detection':
+                sg.Popup('%s%s' % (self.disk_types, json.dumps(get_disk_types(), indent=4)))
             elif event == 'Reload smartd service':
                 self.service_reload()
             elif event == 'Save changes':
@@ -742,7 +744,7 @@ class MainGuiApp:
 
     @staticmethod
     def spacer_tweakf(pixels=10):
-        return [sg.T(' ' * pixels, font=('Helvetica', 1))]
+        return sg.T(' ' * pixels, font=('Helvetica', 1))
 
     def update_main_gui_config(self):
         for drive_type in self.config.drive_types:
@@ -1491,7 +1493,7 @@ def main(argv):
     if IS_STABLE is False:
         logger.warning("Warning: This is an unstable developpment version.")
 
-    sg.ChangeLookAndFeel('LightGrey')
+    sg.ChangeLookAndFeel('Material2')
     sg.SetOptions(element_padding=(0, 0), font=('Helvetica', 9), margins=(2, 1), icon=ICON_FILE)
 
     config = Configuration()
@@ -1559,8 +1561,8 @@ if __name__ == '__main__':
             # Actual if statement not needed, but keeps code inspectors more happy
             # This only exists when built with nuitka
             # noinspection PyUnresolvedReferences
-            if __nuitka_binary_dir is not None:
-                is_nuitka_compiled = True
+            __nuitka_binary_dir
+            is_nuitka_compiled = True
         except NameError:
             is_nuitka_compiled = False
 
