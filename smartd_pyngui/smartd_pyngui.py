@@ -16,6 +16,7 @@ import zlib
 import ofunctions
 import ofunctions.Mailer
 import scrambledconfigparser
+import json
 
 import PySimpleGUI as sg
 
@@ -94,8 +95,74 @@ logger = ofunctions.logger_get_logger(LOG_FILE, debug=_DEBUG)
 
 # ACTUAL APPLICATION ######################################################################################
 
+def get_disk_types():
+    # Assume that we will use smartctl in order to detect disk types instead of WMI
+    # use smartctl --scan-open to list drives
+
+    # Contains array of disks like [name, type] where type = ssd, spinning or nvme
+    disk_list = []
+
+    result, output = ofunctions.command_runner('"%s" %s' % ('smartctl.exe', '--scan-open --json'))
+    if result != 0:
+        return None
+    else:
+        disks = json.loads(output)
+        """
+        # When running Windows, EOL char is \r\n, we'll just keep \n as it will work un *nix too
+        for line in output.split('\n'):
+            disk = line.split(' ')
+            if not disk[0].startswith('/dev'):
+                break
+            # Before adding disks to disk list, we need to check whether the SMART attributes can be read
+            # This is specially usefull to filter raid member drives
+
+            
+            disks.append([disk[0], disk[2]])
+        print(disks)
+        """
+        for disk in disks['devices']:
+            # Before adding disks to disk list, we need to check whether the SMART attributes can be read
+            # This is specially usefull to filter raid member drives
+
+            result, output = ofunctions.command_runner('"%s" %s %s' % ('smartctl.exe', '--info --json', disk['name']),
+                                                       valid_exit_codes=[0, 1], timeout=30)
+            if result != 0:
+                # Don't add drives that can't be opened
+                continue
+            else:
+                # disk['type'] is already correct for nvme disks
+
+                disk_detail = json.loads(output)
+                # Determnie if disk is spinning
+                try:
+                    if disk_detail['rotation_rate'] == 'Solid State Device':
+                        disk['dtype'] = 'ssd'
+                    elif int(disk_detail['rotation_state']) != 0:
+                        disk['dtype'] = 'spinning'
+                except (TypeError, KeyError):
+                    pass
+
+                # set dtype for nvme disks
+                if disk['type'] == 'nvme':
+                    disk['dtype'] = 'nvme'
+
+            disk_list.append(disk)
+        return disk_list
+
 
 class Configuration:
+    """
+    This class can read / write smartd.conf files
+
+    Standard smartd.conf files are read into 'default' section
+    If the file has been written by this class, it will have
+
+    - A header: '# smartd_pyngui 1.0 conf file'
+    - a Disk type list: '# __spinning /dev/sda /dev/sdb\n# __nvme /dev/sdc\n __ssd /dev/sdd
+    - Various sections of configuration settings per disk type (eg /dev/sdX [config])
+    - If no disk type list exists, than the __default type will be used
+
+    """
     smart_conf_file = ""
 
     def __init__(self, file_path=None):
@@ -279,7 +346,7 @@ class Configuration:
                             #  Remove unnecessary blanks and newlines
                             for i, _ in enumerate(config_list):
                                 config_list[i] = config_list[i].strip()
-                            #  drive_list.append(config_list[0]) #WIP#TODO
+                            drive_list.append(config_list[0]) #WIP#TODO
                             del config_list[0]
 
                     self.drive_list = drive_list
@@ -605,10 +672,11 @@ class MainGuiApp:
                         if self.get_main_gui_config(values):
                             self.config.write_smartd_conf_file()
                             sg.Popup('Changes saved to configuration file')
-                            self.service_reload()
                     except Exception:
                         sg.PopupError('Cannot save configuration', icon=None)
                         logger.debug('Trace', exc_info=True)
+                    finally:
+                        self.service_reload()
                 break
             if event == 'Exit':  # Todo ask service reload and save question
                 action = sg.Popup('Are you sure ?', custom_text=('Cancel', 'Exit'), icon=None)
@@ -678,26 +746,25 @@ class MainGuiApp:
 
     def update_main_gui_config(self):
         for drive_type in self.config.drive_types:
-            print(drive_type)
-            print(self.config.drive_list)
-            print(type(self.config.drive_list))
+            try:
+                # Per drive_type drive_list and config_list
+                drive_list = self.config.drive_list[drive_type]
+                config_list = self.config.config_list[drive_type]
+            except KeyError:
+                logger.error('No drive list for %s' % drive_type)
+                break
+
 
             try:
-                if self.config.drive_list[drive_type] == ['DEVICESCAN']:
+                if drive_list == ['DEVICESCAN']:
                     self.window.Element('drive_auto' + drive_type).Update(True)
                 else:
                     self.window.Element('drive_manual' + drive_type).Update(True)
-                    for drive in self.config.drive_list[drive_type]:
+                    for drive in drive_list:
                         drives = drive + '\n'
                         self.window.Element('drive_list' + drive_type).Update(drives)
             except KeyError:
                 logger.error('No drive set yet')
-
-            try:
-                config_list = self.config.config_list[drive_type]
-            except TypeError:
-                # No values vto set in gui
-                break
 
             # Self test regex GUI setup
             if '-s' in '\t'.join(config_list):
@@ -818,19 +885,19 @@ class MainGuiApp:
 
     def get_main_gui_config(self, values):
         for drive_type in self.config.drive_types:
-            drive_list = {}
-            config_list = {}
+            # Per drive_type list
+            drive_list = []
+            config_list = []
 
             if values['drive_auto' + drive_type] is True:
-                # drive_list.append('DEVICESCAN') #WIP#TODO
-                pass
+                drive_list.append('DEVICESCAN')
             else:
                 drive_list = values['drive_list' + drive_type].split()
 
                 # TODO: better bogus pattern detection
                 # TODO: needs to raise exception
 
-                if drive_list == {}:
+                if drive_list[drive_type] == {}:
                     msg = "Drive list is empty"
                     logger.error(msg)
                     sg.PopupError(msg)
