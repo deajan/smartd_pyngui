@@ -13,12 +13,13 @@ import re
 import logging
 import tempfile
 import time
+import psutil
 from logging.handlers import RotatingFileHandler
 
-VERSION = '0.1.3'
-BUILD = '2019051601'
-
 import ofunctions.FileUtils as FileUtils
+
+VERSION = '0.1.6'
+BUILD = '2019121901'
 
 if os.name == 'nt':
     try:
@@ -187,34 +188,36 @@ def bytes_to_string(bytes_to_convert):
 
 def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, decoder='utf-8'):
     """
-    command_runner 2019011001
+    command_runner 2019103101
     Whenever we can, we need to avoid shell=True in order to preseve better security
     Runs system command, returns exit code and stdout/stderr output, and logs output on error
     valid_exit_codes is a list of codes that don't trigger an error
     """
 
-    if valid_exit_codes is None:
-        valid_exit_codes = []
-
     try:
         # universal_newlines=True makes netstat command fail under windows
-        # timeout may not work on linux
+        # timeout does not work under Python 2.7 with subprocess32 < 3.5
         # decoder may be unicode_escape for dos commands or utf-8 for powershell
-        output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=shell,
-                                         timeout=timeout, universal_newlines=False)
-        output = output.decode(decoder, errors='ignore')
+        if sys.version_info >= (3, 0):
+            output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=shell,
+                                             timeout=timeout, universal_newlines=False)
+        else:
+            output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=shell,
+                                             universal_newlines=False)
+        output = output.decode(decoder, errors='backslashreplace')
     except subprocess.CalledProcessError as exc:
         exit_code = exc.returncode
+        # noinspection PyBroadException
         try:
             output = exc.output
             try:
-                output = output.decode(decoder, errors='ignore')
+                output = output.decode(decoder, errors='backslashreplace')
             except Exception as subexc:
                 logger.debug(subexc, exc_info=True)
                 logger.debug('Cannot properly decode error. Text is %s' % output)
         except Exception:
             output = "command_runner: Could not obtain output from command."
-        if exit_code in valid_exit_codes:
+        if exit_code in valid_exit_codes if valid_exit_codes is not None else [0]:
             logger.debug('Command [%s] returned with exit code [%s]. Command output was:' % (command, exit_code))
             if output:
                 logger.debug(output)
@@ -231,11 +234,34 @@ def command_runner(command, valid_exit_codes=None, timeout=30, shell=False, deco
     except subprocess.TimeoutExpired:
         logger.error('Timeout [%s seconds] expired for command [%s] execution.' % (timeout, command))
         return None, 'Timeout of %s seconds expired.' % timeout
+    except Exception as exc:
+        logger.error('Command [%s] failed for unknown reasons.')
+        logger.debug('Error:', exc_info=True)
+        return None, exc
     else:
         logger.debug('Command [%s] returned with exit code [0]. Command output was:' % command)
         if output:
             logger.debug(output)
         return 0, output
+
+
+def kill_childs(pid, itself=False):
+    """
+    Kills all childs of pid (current pid can be obtained with os.getpid()
+    Good idea when using multiprocessing, is to call with atexit.register(ofunctions.kill_childs, os.getpid(),)
+
+    :param pid: Which pid tree we'll kill
+    :param itself: Should parent be killed too ?
+    :return:
+    """
+    parent = psutil.Process(pid)
+    logger.debug('Searching for children of pid %s.' % parent.pid)
+    for child in parent.children(recursive=True):
+        logger.debug('Killing pid %s.' % child)
+        child.kill()
+    if itself:
+        logger.debug('Killing pid %s.' % parent)
+        parent.kill()
 
 
 class PowerShellRunner:
@@ -248,7 +274,8 @@ class PowerShellRunner:
             # Try to guess powershell path if no valid path given
             interpreter_executable = 'powershell.exe'
             try:
-                # Let's try native powershell (64 bit) first or else Import-Module may fail when running 32 bit powershell on 64 bit arch
+                # Let's try native powershell (64 bit) first or else
+                # Import-Module may fail when running 32 bit powershell on 64 bit arch
                 best_guess = os.environ[
                                  'SYSTEMROOT'] + '\\sysnative\\WindowsPowerShell\\v1.0\\' + interpreter_executable
                 if os.path.isfile(best_guess):
@@ -273,7 +300,7 @@ class PowerShellRunner:
                 except KeyError:
                     pass
 
-            if not self.powershell_interpreter is None:
+            if self.powershell_interpreter is not None:
                 logger.debug('Found powershell interpreter in: %s' % self.powershell_interpreter)
             else:
                 raise OSError('Could not find any valid powershell interpreter')
@@ -309,7 +336,7 @@ def create_manifest_from_dict(manifest_file, manifest_dict):
         logger.debug('Trace:', exc_info=True)
 
 
-def create_manifest_from_dir(manifest_file, path, remove_prefix=None):
+def create_manifest_from_dir(manifest_file, path, remove_prefix=None, d_exclude_list=None):
     """
     Creates a bash like file manifest with sha256sum and filenames
 
@@ -317,12 +344,13 @@ def create_manifest_from_dir(manifest_file, path, remove_prefix=None):
     :param manifest_file: path of resulting manifest file
     :param path: path of directory to create manifest for
     :param remove_prefix: optional path prefix to remove from files in manifest
+    :param d_exclude_list: optional directory exclude list
     :return:
     """
     if not os.path.isdir(path):
         raise NotADirectoryError('Path [%s] does not exist.' % path)
 
-    files = FileUtils.get_files_recursive(path)
+    files = FileUtils.get_files_recursive(path, d_exclude_list)
     with open(manifest_file, 'w', encoding='utf-8') as fp:
         for file in files:
             sha256 = FileUtils.sha256sum(file)
@@ -374,11 +402,19 @@ def check_for_virtualization(product_id):
     return False, 'Physical / Unknown hypervisor'
 
 
+def is_64bit():
+    if os.name == 'nt':
+        return is_windows_64bit()
+    else:
+        # We detect Python verison and not OS version here
+        return sys.maxsize > 2 ** 32
+
+
 # https: // stackoverflow.com / a / 12578715
-@property
 def is_windows_64bit():
     if 'PROCESSOR_ARCHITEW6432' in os.environ:
         return True
+    # Possible values of PROCESSOR_ARCHITECURE is AMD64, IA64, ARM64 and EM64T(Rare, only on Windows XP 64)
     return os.environ['PROCESSOR_ARCHITECTURE'].endswith('64')
 
 
@@ -387,3 +423,28 @@ def is_mail_address(string):
         return True
     else:
         return False
+
+
+def rot13(string):
+    """
+    Rot13 for only A-Z and a-z characters
+    """
+    try:
+        return ''.join(
+            [chr(ord(n) + (13 if 'Z' < n < 'n' or n < 'N' else -13)) if ('a' <= n <= 'z' or 'A' <= n <= 'Z') else n for n in
+             string])
+    except TypeError:
+        return None
+
+
+def tmbscfe(string):
+    """
+    The Most Basic Symetric Cipher Function Ever
+    Reverse string case and reverse string itself and rot13 it's alphabetical chars
+    :param string:
+    :return:
+    """
+    try:
+        return ''.join(c.lower() if c.isupper() else c.upper() for c in reversed(rot13(string)))
+    except TypeError:
+        return None
