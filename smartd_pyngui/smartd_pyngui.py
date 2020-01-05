@@ -337,20 +337,20 @@ class Configuration:
             conf_file = self.smart_conf_file
         try:
             with open(conf_file, 'r') as fp:
-                try:
-                    for line in fp.read():
-                        if line[0] != "\n" and line[0] != "\r" and line[0] != " ":
-                            if line == '##*# Multi drive type config enabled ##*#':
-                                self.global_drive_settings = True
-                            elif line == '##*# __spinning drives type ##*#':
-                                current_drive_type = '__spinning'
-                            elif line == '##*# __nvme drives type ##*#':
-                                current_drive_type = '__nvme'
-                            elif line == '##*# __ssd drives type ##*#':
-                                current_drive_type = '__ssd'
-                            elif line == '##*# __removable drives type ##*#':
-                                current_drive_type = '__removable'
-                            elif not line[0] == "#":
+                for line in fp:
+                    if line[0] != "\n" and line[0] != "\r" and line[0] != " ":
+                        if line == '##*# Multi drive type config enabled ##*#':
+                            self.global_drive_settings = True
+                        elif line == '##*# __spinning drives type ##*#':
+                            current_drive_type = '__spinning'
+                        elif line == '##*# __nvme drives type ##*#':
+                            current_drive_type = '__nvme'
+                        elif line == '##*# __ssd drives type ##*#':
+                            current_drive_type = '__ssd'
+                        elif line == '##*# __removable drives type ##*#':
+                            current_drive_type = '__removable'
+                        elif not line[0] == "#":
+                            try:
                                 config_list = line.split(' -')
                                 config_list = [config_list[0]] + ['-' + item for item in config_list[1:]]
                                 #  Remove unnecessary blanks and newlines
@@ -359,12 +359,12 @@ class Configuration:
                                 self.drive_list[current_drive_type].append(config_list[0])
                                 del config_list[0]
                                 self.config_list[current_drive_type] = config_list
-                    self.smart_conf_file = conf_file
-                except Exception:
-                    msg = "Cannot read in config file [%s]." % conf_file
-                    logger.error(msg)
-                    logger.debug('Trace:', exc_info=True)
-                    raise ValueError(msg)
+                            except Exception:
+                                msg = "Cannot read in config file [%s]." % conf_file
+                                logger.error(msg)
+                                logger.debug('Trace:', exc_info=True)
+                                raise ValueError(msg)
+                self.smart_conf_file = conf_file
         except IOError:
             msg = 'Cannot read from config file [%s].' % conf_file
             logger.error(msg)
