@@ -1507,14 +1507,17 @@ def main(argv):
     except ValueError:
         logger.info('Using default alert configuration.')
 
-    if len(argv) > 1:
-        if argv[1] == '--alert':
-            trigger_alert(config)
-        elif argv[1] == '--testalert':
-            trigger_alert(config, 'test')
-        elif argv[1] == '--installmail':
-            trigger_alert(config, 'install')
-        sys.exit(0)  # TODO define exit code
+    try:
+        if len(argv) > 1:
+            if argv[1] == '--alert':
+                trigger_alert(config)
+            elif argv[1] == '--testalert':
+                trigger_alert(config, 'test')
+            elif argv[1] == '--installmail':
+                trigger_alert(config, 'install')
+    except ValueError as msg
+        logger.error(msg)
+        sys.exit(1)
 
     try:
         MainGuiApp(config)
