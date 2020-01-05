@@ -346,19 +346,16 @@ class Configuration:
                     self.drive_list['__spinning'] = drive_list
                     self.config_list['__spinning'] = config_list
                     self.smart_conf_file = conf_file
-                    return True
                 except Exception:
                     msg = "Cannot read in config file [%s]." % conf_file
                     logger.error(msg)
                     logger.debug('Trace:', exc_info=True)
-                    sg.PopupError(msg)
-                    return False
+                    raise ValueError(msg)
         except IOError:
             msg = 'Cannot read from config file [%s].' % conf_file
             logger.error(msg)
             logger.debug('Trace:', exc_info=True)
-            sg.PopupError(msg)
-            return False
+            raise ValueError(msg)
 
     # TODO write 4 different config_lists
     def write_smartd_conf_file(self):
@@ -372,30 +369,27 @@ class Configuration:
                         for arg in self.config_list:
                             line += " " + arg
                         fp.write(line + "\n")
-                except Exception as e:
-                    msg = "Cannot write data in config file [%s]." % self.smart_conf_file
+                except ValueError as e:
+                    msg = 'Cannot write data in config file [%s].' % self.smart_conf_file
                     logger.error(msg)
                     logger.error(e)
                     logger.debug('Trace', exc_info=True)
-                    sg.PopupError(msg)
-                    raise Exception
-                return True  # TODO do we need this here
+                    raise ValueError(msg)
         except Exception as e:
-            logger.error("Cannot write to config file [%s]." % self.smart_conf_file)
+            msg = 'Cannot write to config file [%s].' % self.smart_conf_file
+            logger.error(msg)
             logger.error(e)
             logger.debug('Trace', exc_info=True)
-            raise Exception
+            raise ValueError(msg)
 
     def write_alert_config_file(self):
         if os.path.isdir(os.path.dirname(self.alert_conf_file)):
             with open(self.alert_conf_file, 'wb') as fp:
                 self.int_alert_config.write_scrambled(fp)
-                return True
         else:
             msg = 'Cannot write [%s]. Directory maybe be missing.' % self.alert_conf_file
             logger.error(msg)
-            sg.PopupError(msg)
-            return False
+            raise ValueError(msg)
 
     def read_alert_config_file(self, conf_file=None):
         if conf_file is None:
@@ -403,12 +397,10 @@ class Configuration:
         try:
             self.int_alert_config.read_scrambled(conf_file)
             self.alert_conf_file = conf_file
-            return True
         except Exception:
-            msg = 'Cannot read [%s].' % conf_file
+            msg = 'Cannot read alert config file [%s].' % conf_file
             logger.error(msg)
-            sg.PopupError(msg)
-            return False
+            raise ValueError(msg)
 
 
 class MainGuiApp:
@@ -669,8 +661,8 @@ class MainGuiApp:
                         if self.get_main_gui_config(values):
                             self.config.write_smartd_conf_file()
                             sg.Popup('Changes saved to configuration file')
-                    except Exception:
-                        sg.PopupError('Cannot save configuration', icon=None)
+                    except ValueError as msg:
+                        sg.PopupError('Cannot save configuration. %s' % msg, icon=None)
                         logger.debug('Trace', exc_info=True)
                     finally:
                         self.service_reload()
@@ -690,8 +682,8 @@ class MainGuiApp:
                     if self.get_main_gui_config(values):
                         self.config.write_smartd_conf_file()
                         sg.Popup('Changes saved to configuration file')
-                except Exception:
-                    sg.PopupError('Cannot save configuration', icon=None)
+                except ValueError as msg:
+                    sg.PopupError('Cannot save configuration. %s' % msg, icon=None)
                     logger.debug('Trace', exc_info=True)
             elif event == 'drive_auto':
                 self.window.Element('drive_list_widget').Update(disabled=True,
@@ -702,13 +694,12 @@ class MainGuiApp:
             elif event == 'use_system_mailer' or event == 'use_internal_alert' or event == 'use_external_script':
                 self.alert_switcher(values)
             elif event == 'smart_conf_file':
-                ret = self.config.read_smartd_conf_file(values['smart_conf_file'])
-                sg.Popup(ret)
-                if ret is True:
+                try:
+                    self.config.read_smartd_conf_file(values['smart_conf_file'])
                     self.update_main_gui_config()
                     current_conf_file = values['smart_conf_file']
-                else:
-                    sg.PopupAnnoying()
+                except ValueError as msg:
+                    sg.PopupError(msg)
                     self.window.Element('smart_conf_file').Update(current_conf_file)
             elif 'manual_drive_list_tooltip' in event:
                 sg.Popup(self.manual_drive_list_tooltip)
@@ -1199,22 +1190,27 @@ class MainGuiApp:
             if event is None:
                 break
             if event == 'Save & trigger test alert':
-                self.get_alert_gui_config(values)
-                self.config.write_alert_config_file()
-                ret = trigger_alert(self.config, 'test')
-                if ret is not True:
-                    sg.PopupError(ret)
+                try:
+                    self.get_alert_gui_config(values)
+                    self.config.write_alert_config_file()
+                    trigger_alert(self.config, 'test')
+                except ValueError as msg:
+                    sg.PopupError(msg)
             elif event == 'Save & go back':
-                self.get_alert_gui_config(values)
-                if self.config.write_alert_config_file():
+                try:
+                    self.get_alert_gui_config(values)
+                    self.config.write_alert_config_file()
                     self.alert_window.Close()
+                except ValueError as msg:
+                    sg.PopupError(msg)
                 break
             elif event == 'conf_file':
-                ret = self.config.read_alert_config_file(values['conf_file'])
-                if ret is True:
+                try:
+                    self.config.read_alert_config_file(values['conf_file'])
                     self.update_alert_gui_config()
                     current_conf_file = values['conf_file']
-                else:
+                except ValueError as msg:
+                    sg.PopupError(msg)
                     self.alert_window.Element('conf_file').Update(current_conf_file)
 
     def update_alert_gui_config(self):
@@ -1505,12 +1501,12 @@ def main(argv):
         for drive_type in config.drive_types:
             logger.debug('Drive list for %s\n:%s' % (drive_type, config.drive_list[drive_type]))
             logger.debug('Config for %s\n:%s' % (drive_type, config.config_list[drive_type]))
-    except Exception:
+    except ValueError:
         logger.info('Using default smartd configuration.')
 
     try:
         config.read_alert_config_file()
-    except Exception:
+    except ValueError:
         logger.info('Using default alert configuration.')
 
     if len(argv) > 1:
@@ -1532,7 +1528,7 @@ def main(argv):
 
 # Improved answer I have done in https://stackoverflow.com/a/49759083/2635443
 if __name__ == '__main__':
-    if ofunctions.is_admin() is True:  # TODO # WIP
+    if ofunctions.is_admin() is True:
         main(sys.argv)
     else:
         # UAC elevation / sudo code working for CPython, Nuitka >= 0.6.2, PyInstaller, PyExe, CxFreeze
