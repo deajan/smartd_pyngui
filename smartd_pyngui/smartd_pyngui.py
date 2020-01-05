@@ -1308,9 +1308,9 @@ class MainGuiApp:
 
     def get_alert_gui_config(self, values):
         for key, value in values.items():
-            if value == True:
+            if value is True:
                 value = 'yes'
-            elif value == False:
+            elif value is False:
                 value = 'no'
             if key != 'Browse' and key != 'conf_file' and key != 'useSmtpAuth':
                 self.config.int_alert_config['ALERT'][key] = value
@@ -1637,8 +1637,10 @@ if __name__ == '__main__':
             # Actual if statement not needed, but keeps code inspectors more happy
             # This only exists when built with nuitka
             # noinspection PyUnresolvedReferences
-            __nuitka_binary_dir
-            is_nuitka_compiled = True
+            if __nuitka_binary_dir is not None:
+                is_nuitka_compiled = True
+            else:
+                is_nuitka_compiled = False
         except NameError:
             is_nuitka_compiled = False
 
