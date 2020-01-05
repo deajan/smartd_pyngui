@@ -1428,7 +1428,7 @@ def trigger_alert(config, mode=None):
         except KeyError:
             security = None
 
-        # Try to run smartctl diag
+        # Try to run smartctl diag for all disks
         try:
             command = 'smartctl -a /dev/pd0'
             exit_code, output = ofunctions.command_runner(command)
@@ -1448,18 +1448,17 @@ def trigger_alert(config, mode=None):
                 # WIP
                 logger.info('Mailer result [%s].' % ret)
             # TODO smartctl output and env variables is needed to decorate error messages and get valid smartctl output
-            # TODO see why we'd favor ret over exception
 
             except Exception as e:
                 msg = 'Cannot send email: %s' % e
                 logger.error(msg)
                 logger.debug('Trace', exc_info=True)
-                return msg
+                raise ValueError(msg)
         else:
             msg = 'Cannot trigger mail alert. Essential parameters missing.'
             logger.critical(msg)
             logger.critical('src: %s, dst: %s, smtp_server: %s, smtp_port; %s.' % (src, dst, smtp_server, smtp_port))
-            return msg
+            raise ValueError(msg)
 
     if config.int_alert_config['ALERT']['LOCAL_ALERT'] != 'no':
         if os.name == 'nt':
@@ -1474,13 +1473,12 @@ def trigger_alert(config, mode=None):
                 msg = 'Running local alert failed with exit code [%s].' % exit_code
                 logger.error(msg)
                 logger.error('Additional output: %s' % output)
-                return msg
+                raise ValueError(msg)
         except Exception as e:
             msg = 'Cannot run alert program: %s' % e
             logger.error(msg)
             logger.debug('Trace', exc_info=True)
-            return msg
-    return True
+            raise ValueError(msg)
 
 
 def main(argv):
