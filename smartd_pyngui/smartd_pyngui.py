@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# TODO : move sg.PopupError from config class to gui methods
-
 # IMPORTS ################################################################################################
 
 import os
@@ -373,7 +371,7 @@ class Configuration:
                 try:
                     fp.write(f'# This file was generated on {datetime.now():%d-%B-%Y %H:%m:%S} by '
                              f'{APP_NAME} {APP_VERSION} - {APP_URL}')
-                    #if len(self.drive_list > 1): # WIP write 4 different config_lists
+                    # if len(self.drive_list > 1): # WIP write 4 different config_lists
                     print(self.drive_list)
                     print(len(self.drive_list))
                     for drive in self.drive_list:
@@ -637,7 +635,7 @@ class MainGuiApp:
         layout = [[sg.Column(full_layout, scrollable=True, vertical_scroll_only=True, size=(740, 550))],
                   [sg.T('')],
                   [self.spacer_tweakf(160), sg.Button('Show disk detection'), self.spacer_tweakf(),
-                   sg.Button('Save changes'),self.spacer_tweakf(), sg.Button('Reload smartd service'),
+                   sg.Button('Save changes'), self.spacer_tweakf(), sg.Button('Reload smartd service'),
                    self.spacer_tweakf(), sg.Button('Exit')]
                   ]
 
@@ -758,7 +756,6 @@ class MainGuiApp:
                 logger.error('No drive list for %s' % drive_type)
                 break
 
-
             try:
                 if drive_list == ['DEVICESCAN']:
                     self.window.Element('drive_auto' + drive_type).Update(True)
@@ -766,7 +763,7 @@ class MainGuiApp:
                     self.window.Element('drive_manual' + drive_type).Update(True)
                     for drive in drive_list:
                         drives = drive + '\n'
-                        self.window.Element('drive_list' + drive_type).Update(drives)
+                        self.window.Element('drive_list_widget' + drive_type).Update(drives)
             except KeyError:
                 logger.error('No drive set yet')
 
@@ -896,12 +893,12 @@ class MainGuiApp:
             if values['drive_auto' + drive_type] is True:
                 drive_list.append('DEVICESCAN')
             else:
-                drive_list = values['drive_list' + drive_type].split()
+                drive_list = values['drive_list_widget' + drive_type].split()
 
                 # TODO: better bogus pattern detection
                 # TODO: needs to raise exception
 
-                if drive_list[drive_type] == {}:
+                if drive_list == []:
                     msg = "Drive list is empty"
                     logger.error(msg)
                     sg.PopupError(msg)
