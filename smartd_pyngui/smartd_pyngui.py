@@ -333,6 +333,13 @@ class Configuration:
     # TODO use 4 different config lists
     def read_smartd_conf_file(self, conf_file=None):
         current_drive_type = '__spinning'
+        # Contains smartd drive configurations
+        config_list = {}
+        # Contains lists of drives per drive_types
+        drive_list = {}
+        for drive_type in self.drive_types:
+            config_list[drive_type] = []
+            drive_list[drive_type] = []
         if conf_file is None:
             conf_file = self.smart_conf_file
         try:
@@ -351,26 +358,22 @@ class Configuration:
                             current_drive_type = '__removable'
                         elif not line[0] == "#":
                             try:
-                                config_list = line.split(' -')
-                                config_list = [config_list[0]] + ['-' + item for item in config_list[1:]]
+                                cfg = line.split(' -')
+                                cfg = [cfg[0]] + ['-' + item for item in cfg[1:]]
                                 #  Remove unnecessary blanks and newlines
-                                for i, _ in enumerate(config_list):
-                                    config_list[i] = config_list[i].strip()
-                                self.drive_list[current_drive_type].append(config_list[0])
-                                # Remove DEVICESCAN if more than one drive exists (ie no auto devicescan)
-                                if len(self.drive_list[current_drive_type]) > 1:
-                                    try:
-                                        self.drive_list[current_drive_type].remove('DEVICESCAN')
-                                    except ValueError:
-                                        pass
-                                del config_list[0]
-                                self.config_list[current_drive_type] = config_list
+                                for i, _ in enumerate(cfg):
+                                    cfg[i] = cfg[i].strip()
+                                drive_list[current_drive_type].append(cfg[0])
+                                del cfg[0]
+                                config_list[current_drive_type] = cfg
                             except Exception:
                                 msg = "Cannot read in config file [%s]." % conf_file
                                 logger.error(msg)
                                 logger.debug('Trace:', exc_info=True)
                                 raise ValueError(msg)
                 self.smart_conf_file = conf_file
+            self.drive_list = drive_list
+            self.config_list = config_list
         except IOError:
             msg = 'Cannot read from config file [%s].' % conf_file
             logger.error(msg)
