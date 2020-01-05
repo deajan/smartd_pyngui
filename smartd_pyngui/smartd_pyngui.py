@@ -186,17 +186,11 @@ class Configuration:
 
         # Contains smartd drive configurations
         self.config_list = {}
-        self.config_list['__spinning'] = []
-        self.config_list['__ssd'] = []
-        self.config_list['__nvme'] = []
-        self.config_list['__removable'] = []
-
-        # Contains smartd drive list per type (automatic detected by smartctl --scan or manual list)
+        # Contains lists of drives per drive_types
         self.drive_list = {}
-        self.drive_list['__spinning'] = []
-        self.drive_list['__ssd'] = []
-        self.drive_list['__nvme'] = []
-        self.drive_list['__removable'] = []
+        for drive_type in self.drive_types:
+            self.config_list[drive_type] = []
+            self.drive_list[drive_type] = []
 
         # Contains smartd global alert configuration
         self.config_list_alerts = []
