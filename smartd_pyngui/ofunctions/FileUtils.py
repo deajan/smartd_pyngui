@@ -6,11 +6,13 @@ import shutil
 import time
 import hashlib
 import json
+import re
 from fnmatch import fnmatch
 from contextlib import contextmanager
 from threading import Lock
+import ofunctions
 
-BUILD = '2019060401'
+BUILD = '2019121501'
 
 file_lock_token = None
 
@@ -125,18 +127,19 @@ def replace_in_file(source_file, text_to_search, replacement_text, dest_file=Non
 
 def file_creation_date(path_to_file):
     """
-    # Source: https://stackoverflow.com/a/39501288/2635443
+    Modified version of:
+    Source: https://stackoverflow.com/a/39501288/2635443
     Try to get the date that a file was created, falling back to when it was
     last modified if that isn't possible.
     See http://stackoverflow.com/a/39501288/1709587 for explanation.
-
     """
-    if os.name == 'nt':
+    try:
         return os.path.getctime(path_to_file)
-    else:
+    # Some linxes may not have os.path.getctime ?
+    except AttributeError:
         stat = os.stat(path_to_file)
         try:
-            return stat.st_birthtime
+            return stat.st_ctime
         except AttributeError:
             # We're probably on Linux. No easy way to get creation dates here,
             # so we'll settle for when its content was last modified.
@@ -232,3 +235,45 @@ def read_json_from_file(file):
             return file_content
     else:
         return None
+
+
+def get_lzma_dict_size(directory):
+    # Returns lzma dict (in MB) size based on approx of files size
+
+    # Get dist size (bytes to MB by shr 20)
+    # Lets assume that dict should be 2 <= dist_size <= 128 MB
+    total_dist_size = 0
+    for file in get_files_recursive(directory):
+        if not os.path.islink(file):
+            total_dist_size += os.path.getsize(file) >> 20
+
+    # Compute best dict size for compression
+    factor = 2
+    while (total_dist_size / factor > 1) and factor < 128:
+        factor *= 2
+    return "%i" % factor
+
+
+def grep(file, pattern):
+    if os.path.isfile(file):
+        result = []
+        with open(file, 'r') as fp:
+            for line in fp:
+                if re.search(pattern, line):
+                    result.append(line)
+        return result
+    else:
+        raise FileNotFoundError(file)
+
+
+def hide_windows_file(file, hidden=True):
+    if os.name == 'nt':
+        if hidden:
+            symbol = '+'
+        else:
+            symbol = '-'
+        result, output = ofunctions.command_runner('attrib %sh "%s"' % (symbol, file))
+        if result != 0:
+            raise IOError(file)
+    else:
+        return
