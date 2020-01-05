@@ -178,7 +178,7 @@ class Configuration:
             self.app_root = os.path.dirname(self.app_executable)
 
         ##*# Multi drive type config enabled ##*#
-        self.multi_drive_config_explanation = 'Since smartd cannot set different settings per drive type, ' \
+        self.multi_drive_config_explanation = '# Since smartd cannot set different settings per drive type, ' \
                                               'we analyzed the drives on your computer and assigned settings ' \
                                               'corresponding to the drive types. When drives change, a re-run ' \
                                               'of the tool is required.'
@@ -332,6 +332,7 @@ class Configuration:
 
     # TODO use 4 different config lists
     def read_smartd_conf_file(self, conf_file=None):
+        current_drive_type = '__spinning'
         if conf_file is None:
             conf_file = self.smart_conf_file
         try:
@@ -391,13 +392,13 @@ class Configuration:
                                 line += " " + arg
                             fp.write(line + "\n")
                 except ValueError as e:
-                    msg = 'Cannot write data in config file [%s].' % self.smart_conf_file
+                    msg = f'Cannot write data in config file [{self.smart_conf_file}].'
                     logger.error(msg)
                     logger.error(e)
                     logger.debug('Trace', exc_info=True)
                     raise ValueError(msg)
         except Exception as e:
-            msg = 'Cannot write to config file [%s].' % self.smart_conf_file
+            msg = f'Cannot write to config file [{self.smart_conf_file}].'
             logger.error(msg)
             logger.error(e)
             logger.debug('Trace', exc_info=True)
@@ -408,7 +409,7 @@ class Configuration:
             with open(self.alert_conf_file, 'wb') as fp:
                 self.int_alert_config.write_scrambled(fp)
         else:
-            msg = 'Cannot write [%s]. Directory maybe be missing.' % self.alert_conf_file
+            msg = f'Cannot write [{self.alert_conf_file}]. Directory maybe be missing.'
             logger.error(msg)
             raise ValueError(msg)
 
@@ -419,7 +420,7 @@ class Configuration:
             self.int_alert_config.read_scrambled(conf_file)
             self.alert_conf_file = conf_file
         except Exception:
-            msg = 'Cannot read alert config file [%s].' % conf_file
+            msg = f'Cannot read alert config file [{conf_file}].'
             logger.error(msg)
             raise ValueError(msg)
 
