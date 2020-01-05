@@ -3,8 +3,8 @@ python:
     #- 2.7
     #- pypy
     #- 3.3
-    - 3.4
-    - 3.5
+    #- 3.4 # disabled because of f-strings incompat with python < 3.6
+    #- 3.5 # disabled because of f-strings incompat with python < 3.6 
     - 3.6
     #- nightly
     #- pypy3
