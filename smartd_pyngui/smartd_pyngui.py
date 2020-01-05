@@ -113,7 +113,7 @@ def get_disk_types():
             # This is specially usefull to filter raid member drives
 
             result, output = ofunctions.command_runner('"%s" %s %s' % ('smartctl.exe', '--info --json', disk['name']),
-                                                       valid_exit_codes=[0, 1], timeout=30)
+                                                       valid_exit_codes=[0, 1], timeout=60)
             if result != 0:
                 # Don't add drives that can't be opened
                 continue
@@ -145,7 +145,8 @@ def get_smart_info(disk_list):
 
     for disk in disk_list:
         if disk['disk_type'] != 'unknown':
-            result, output = ofunctions.command_runner('"%s" %s %s' % ('smartctl.exe', '--all', disk['name']))
+            result, output = ofunctions.command_runner('"%s" %s %s' % ('smartctl.exe', '--all', disk['name']),
+                                                       valid_exit_codes=[0, 4], timeout=60)
             if result != 0:
                 general_output = f'{general_output}\n\nDisk {disk["name"]}\n{output}'
     return general_output
