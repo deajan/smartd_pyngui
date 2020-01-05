@@ -135,12 +135,19 @@ def get_disk_types():
                 except (TypeError, KeyError):
                     disk['disk_type'] = 'unknown'
                     logger.debug('Trace', exc_info=True)
-
-
-
-
             disk_list.append(disk)
         return disk_list
+
+
+def get_smart_info(disk_list):
+    general_output = ""
+
+    for disk in disk_list:
+        if disk['disk_type'] != 'unknown':
+            result, output = ofunctions.command_runner('"%s" %s %s' % ('smartctl.exe', '--all', disk['name']))
+            if result != 0:
+                general_output = f'{general_output}\n\nDisk {disk["name"]}\n{output}'
+    return general_output
 
 
 class Configuration:
@@ -153,7 +160,7 @@ class Configuration:
     - A header: '# smartd_pyngui 1.0 conf file'
     - a Disk type list: '# __spinning /dev/sda /dev/sdb\n# __nvme /dev/sdc\n __ssd /dev/sdd
     - Various sections of configuration settings per disk type (eg /dev/sdX [config])
-    - If no disk type list exists, than the __default type will be used
+    - If no disk type list exists, than the __spinning type will be used
 
     """
     smart_conf_file = ""
@@ -175,7 +182,7 @@ class Configuration:
 
         # Drive types
         # Default gets populated when no other configs exist
-        self.drive_types = ['default', '__spinning', '__ssd', '__nvme', '__removable']
+        self.drive_types = ['__spinning', '__ssd', '__nvme', '__removable']
 
         # Contains smartd drive configurations
         self.config_list = {}
@@ -1392,20 +1399,21 @@ def trigger_alert(config, mode=None):
     smartd_info['prevcnt'] = os.environ.get('SMARTD_PREVCNT', 'Unknown')
     smartd_info['nextdays'] = os.environ.get('SMARTD_NEXTDAYS', 'Unknown')
 
-    # TODO integrate smartd_info with warning message
-
     if mode == 'test':
-        subject = 'Smartmontools email test'
-        warning_message = "Smartmontools Alert Test"
+        subject = 'Smartmontools-win email test'
+        warning_message = "Smartmontools-win Alert Test"
     elif mode == 'installmail':
-        subject = 'Smartmontools installation test'
-        warning_message = 'Smartmontools installation confirmation.'
+        subject = 'Smartmontools-win installation test'
+        warning_message = 'Smartmontools-win installation confirmation.'
     else:
-        subject = 'Smartmontools alert'
+        subject = 'Smartmontools-win alert'
         try:
             warning_message = config.int_alert_config['ALERT']['WARNING_MESSAGE']
         except KeyError:
             warning_message = 'Default warning message not set !'
+
+    # TODO integrate smartd_info with warning message tidier
+    warning_message = f'{warning_message}\n{smartd_info}'
 
     if config.int_alert_config['ALERT']['MAIL_ALERT'] != 'no':
         src = config.int_alert_config['ALERT']['SOURCE_MAIL']
@@ -1430,9 +1438,8 @@ def trigger_alert(config, mode=None):
 
         # Try to run smartctl diag for all disks
         try:
-            command = 'smartctl -a /dev/pd0'
-            exit_code, output = ofunctions.command_runner(command)
-            attachment = zlib.compress(output.encode('utf-8'))
+            smartd_output = get_smart_info(get_disk_types())
+            attachment = zlib.compress(smartd_output.encode('utf-8'))
         except Exception:
             logger.error('Cannot get smartctl output.')
             logger.debug('Trace', exc_info=True)
@@ -1443,11 +1450,11 @@ def trigger_alert(config, mode=None):
                 ret = ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server,
                                                    smtp_port=smtp_port,
                                                    smtp_user=smtp_user, smtp_password=smtp_password, security=security,
-                                                   subject=subject, attachment=attachment, filename='log.zip',
+                                                   subject=subject, attachment=attachment,
+                                                   filename='smartctl_output.zip',
                                                    body=warning_message, debug=True)  # TODO remove debug True
                 # WIP
                 logger.info('Mailer result [%s].' % ret)
-            # TODO smartctl output and env variables is needed to decorate error messages and get valid smartctl output
 
             except Exception as e:
                 msg = 'Cannot send email: %s' % e
@@ -1515,7 +1522,7 @@ def main(argv):
                 trigger_alert(config, 'test')
             elif argv[1] == '--installmail':
                 trigger_alert(config, 'install')
-    except ValueError as msg
+    except ValueError as msg:
         logger.error(msg)
         sys.exit(1)
 
