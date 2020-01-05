@@ -103,7 +103,7 @@ def get_disk_types():
     # Contains array of disks like [name, type] where type = ssd, spinning or nvme
     disk_list = []
 
-    result, output = ofunctions.command_runner('"%s" %s' % ('smartctl.exe', '--scan-open --json'))
+    result, output = ofunctions.command_runner(f'"{"smartctl.exe"}" {"--scan-open --json"}')
     if result != 0:
         return None
     else:
@@ -112,7 +112,7 @@ def get_disk_types():
             # Before adding disks to disk list, we need to check whether the SMART attributes can be read
             # This is specially usefull to filter raid member drives
 
-            result, output = ofunctions.command_runner('"%s" %s %s' % ('smartctl.exe', '--info --json', disk['name']),
+            result, output = ofunctions.command_runner(f'"{"smartctl.exe"}" {"--info --json"} {disk["name"]}',
                                                        valid_exit_codes=[0, 1], timeout=60)
             if result != 0:
                 # Don't add drives that can't be opened
@@ -145,7 +145,7 @@ def get_smart_info(disk_list):
 
     for disk in disk_list:
         if disk['disk_type'] != 'unknown':
-            result, output = ofunctions.command_runner('"%s" %s %s' % ('smartctl.exe', '--all', disk['name']),
+            result, output = ofunctions.command_runner(f'"{"smartctl.exe"}" {"--all"} {disk["name"]}',
                                                        valid_exit_codes=[0, 4], timeout=60)
             if result != 0:
                 general_output = f'{general_output}\n\nDisk {disk["name"]}\n{output}'
@@ -1266,12 +1266,12 @@ def system_service_handler(service, action):
     loops = 0  # Number of seconds elapsed since we started Windows service
     max_wait = 6  # Number of seconds we'll wait for Windows service to start
 
-    msg_already_running = "Service [%s] already running." % service
-    msg_not_running = "Service [%s] is not running." % service
-    msg_action = "Action %s for service [%s]." % (action, service)
-    msg_success = "Action %s succeeded." % action
-    msg_failure = "Action %s failed." % action
-    msg_too_long = "Action %s took more than %s seconds and seems to have failed." % (action, max_wait)
+    msg_already_running = f'Service [{service}] already running.'
+    msg_not_running = f'Service [{service}] is not running.'
+    msg_action = f'Action {action} for service [{service}].'
+    msg_success = f'Action {action} succeeded.'
+    msg_failure = f'Action {action} failed.'
+    msg_too_long = f'Action {action} took more than {max_wait} seconds and seems to have failed.'
 
     def nt_service_status(service):
         # Returns list. If second entry = 4, service is running
@@ -1338,7 +1338,7 @@ def system_service_handler(service, action):
         # service_status = os.system("service " + service + " status > /dev/null 2>&1")
 
         # Valid exit code are 0 and 3 (because of systemctl using a service redirect)
-        service_status, _ = ofunctions.command_runner('service %s status' % service)
+        service_status, _ = ofunctions.command_runner(f'service "{service}" status')
         if service_status == 0:
             is_running = True
         else:
@@ -1352,13 +1352,13 @@ def system_service_handler(service, action):
                 logger.info(msg_action)
                 try:
                     # result = os.system('service ' + service + ' start > /dev/null 2>&1')
-                    result, output = ofunctions.command_runner('service %s start' % service)
+                    result, output = ofunctions.command_runner(f'service "{service} start')
                     if result == 0:
                         logger.info(msg_success)
                         return True
                     else:
-                        logger.error('Could not start service, code [%s].' % result)
-                        logger.error('Output: %s' % output)
+                        logger.error(f'Could not start service, code [{result}].')
+                        logger.error(f'Output:\n{output}')
                         raise Exception
                 except Exception:
                     logger.info(msg_failure)
@@ -1372,13 +1372,13 @@ def system_service_handler(service, action):
                 logger.info(msg_action)
                 try:
                     # result = os.system('service ' + service + ' stop > /dev/null 2>&1')
-                    result, output = ofunctions.command_runner('service %s stop' % service)
+                    result, output = ofunctions.command_runner(f'service "{service}" stop')
                     if result == 0:
                         logger.info(msg_success)
                         return True
                     else:
-                        logger.error('Could not start service, code [%s].' % result)
-                        logger.error('Output: %s' % output)
+                        logger.error(f'Could not start service, code [{result}].')
+                        logger.error(f'Output:\n{output}')
                         raise Exception
                 except Exception:
                     logger.error(msg_failure)
@@ -1465,47 +1465,47 @@ def trigger_alert(config, mode=None):
                                                    filename='smartctl_output.zip',
                                                    body=warning_message, debug=True)  # TODO remove debug True
                 # WIP
-                logger.info('Mailer result [%s].' % ret)
+                logger.info(f'Mailer result [{ret}].')
 
             except Exception as e:
-                msg = 'Cannot send email: %s' % e
+                msg = f'Cannot send email: {e}'
                 logger.error(msg)
                 logger.debug('Trace', exc_info=True)
                 raise ValueError(msg)
         else:
             msg = 'Cannot trigger mail alert. Essential parameters missing.'
             logger.critical(msg)
-            logger.critical('src: %s, dst: %s, smtp_server: %s, smtp_port; %s.' % (src, dst, smtp_server, smtp_port))
+            logger.critical(f'src: {src}, dst: {dst}, smtp_server: {smtp_server}, smtp_port; {smtp_port}.')
             raise ValueError(msg)
 
     if config.int_alert_config['ALERT']['LOCAL_ALERT'] != 'no':
         if os.name == 'nt':
             # Make a popup appear on all sessions including console
-            command = 'wtssendmsg.exe -a "%s"' % warning_message
+            # TODO add CURRENT_DIR
+            command = f'wtssendmsg.exe -a "{warning_message}"'
         else:
             # Alert all users on terminal
-            command = 'wall "%s"' % warning_message
+            command = f'wall "{warning_message}"'
         try:
             exit_code, output = ofunctions.command_runner(command)
             if exit_code != 0:
-                msg = 'Running local alert failed with exit code [%s].' % exit_code
+                msg = f'Running local alert failed with exit code [{exit_code}].'
                 logger.error(msg)
-                logger.error('Additional output: %s' % output)
+                logger.error(f'Additional output:\n{output}')
                 raise ValueError(msg)
         except Exception as e:
-            msg = 'Cannot run alert program: %s' % e
+            msg = f'Cannot run alert program: {e}'
             logger.error(msg)
             logger.debug('Trace', exc_info=True)
             raise ValueError(msg)
 
 
 def main(argv):
-    logger.info('%s %s %s' % (APP_NAME, APP_VERSION, APP_BUILD))
-    logger.info(
-        'Running on %s %s/%s' % (' '.join(platform.uname()), platform.python_version(), ofunctions.python_arch()))
+    logger.info(f'{APP_NAME} {APP_VERSION} {APP_BUILD}')
+    logger.info(f'Running on {" ".join(platform.uname())} {platform.python_version()} py={ofunctions.python_arch()}')
 
     if IS_STABLE is False:
-        logger.warning("Warning: This is an unstable developpment version.")
+        logger.warning('Warning: This is an unstable developpment version.')
 
     sg.ChangeLookAndFeel('Material2')
     sg.SetOptions(element_padding=(0, 0), font=('Helvetica', 9), margins=(2, 1), icon=ICON_FILE)
@@ -1515,8 +1515,8 @@ def main(argv):
     try:
         config.read_smartd_conf_file()
         for drive_type in config.drive_types:
-            logger.debug('Drive list for %s\n:%s' % (drive_type, config.drive_list[drive_type]))
-            logger.debug('Config for %s\n:%s' % (drive_type, config.config_list[drive_type]))
+            logger.debug(f'Drive list for {drive_type}\n:{config.drive_list[drive_type]}')
+            logger.debug(f'Config for {drive_type}\n:{config.config_list[drive_type]}')
     except ValueError:
         logger.info('Using default smartd configuration.')
 
@@ -1590,8 +1590,8 @@ if __name__ == '__main__':
             arguments = sys.argv[1:]
             # current_dir = os.path.dirname(runner)
 
-            logger.debug('Running elevator as Nuitka with runner [%s]' % runner)
-            logger.debug('Arguments are %s' % arguments)
+            logger.debug(f'Running elevator as Nuitka with runner [{runner}].')
+            logger.debug(f'Arguments are [{arguments}].')
 
         # If a freezer is used (PyInstaller, cx_freeze, py2exe)
         elif getattr(sys, "frozen", False):
@@ -1599,8 +1599,8 @@ if __name__ == '__main__':
             arguments = sys.argv[1:]
             # current_dir = os.path.dirname(runner)
 
-            logger.debug('Running elevator as Frozen with runner [%s]' % runner)
-            logger.debug('Arguments are %s' % arguments)
+            logger.debug(f'Running elevator as Frozen with runner [{runner}].')
+            logger.debug(f'Arguments are [{arguments}].')
 
         # If standard interpreter CPython is used
         else:
@@ -1608,8 +1608,8 @@ if __name__ == '__main__':
             arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:]
             # current_dir = os.path.abspath(sys.argv[0])
 
-            logger.debug('Running elevator as CPython with runner [%s]' % runner)
-            logger.debug('Arguments are %s' % arguments)
+            logger.debug(f'Running elevator as CPython with runner [{runner}].')
+            logger.debug(f'Arguments are [{arguments}].')
 
         if os.name == 'nt':
             # Re-run the program with admin rights
@@ -1669,14 +1669,14 @@ if __name__ == '__main__':
                                                      shell=False, universal_newlines=False)
                     output = output.decode('unicode_escape', errors='ignore')
 
-                    logger.info('Child output: %s' % output)
+                    logger.info(f'Child output: [{output}].')
                     sys.exit(0)
                 except subprocess.CalledProcessError as exc:
                     exit_code = exc.returncode
-                    logger.error('Child exited with code: %s' % exit_code)
+                    logger.error(f'Child exited with code: [{exit_code}].')
                     try:
                         output = exc.output.decode('unicode_escape', errors='ignore')
-                        logger.error('Child outout: %s' % output)
+                        logger.error(f'Child output: [{output}].')
                     except Exception as exc:
                         logger.debug(exc, exc_info=True)
                     sys.exit(exit_code)
