@@ -177,8 +177,16 @@ class Configuration:
             self.app_executable = os.path.abspath(sys.argv[0])
             self.app_root = os.path.dirname(self.app_executable)
 
+        ##*# Multi drive type config enabled ##*#
+        self.multi_drive_config_explanation = 'Since smartd cannot set different settings per drive type, ' \
+                                              'we analyzed the drives on your computer and assigned settings ' \
+                                              'corresponding to the drive types. When drives change, a re-run ' \
+                                              'of the tool is required.'
         self.smart_conf_file = None
         self.alert_conf_file = None
+
+        # Use __spinning drive settings for all drive types
+        self.global_drive_settings = False
 
         # Drive types
         # Default gets populated when no other configs exist
@@ -328,24 +336,28 @@ class Configuration:
             conf_file = self.smart_conf_file
         try:
             with open(conf_file, 'r') as fp:
-
                 try:
-                    drive_list = []
-                    for line in fp.readlines():
-                        if not line[0] == "#" and line[0] != "\n" and line[0] != "\r" and line[0] != " ":
-                            config_list = line.split(' -')
-                            config_list = [config_list[0]] + ['-' + item for item in config_list[1:]]
-                            #  Remove unnecessary blanks and newlines
-                            for i, _ in enumerate(config_list):
-                                config_list[i] = config_list[i].strip()
-                            drive_list.append(config_list[0])
-                            del config_list[0]
-
-                    # Detect conf file format to know which parameters for which drive types to assign
-                    # WIP TODO
-
-                    self.drive_list['__spinning'] = drive_list
-                    self.config_list['__spinning'] = config_list
+                    for line in fp.read():
+                        if line[0] != "\n" and line[0] != "\r" and line[0] != " ":
+                            if line == '##*# Multi drive type config enabled ##*#':
+                                self.global_drive_settings = True
+                            elif line == '##*# __spinning drives type ##*#':
+                                current_drive_type = '__spinning'
+                            elif line == '##*# __nvme drives type ##*#':
+                                current_drive_type = '__nvme'
+                            elif line == '##*# __ssd drives type ##*#':
+                                current_drive_type = '__ssd'
+                            elif line == '##*# __removable drives type ##*#':
+                                current_drive_type = '__removable'
+                            elif not line[0] == "#":
+                                config_list = line.split(' -')
+                                config_list = [config_list[0]] + ['-' + item for item in config_list[1:]]
+                                #  Remove unnecessary blanks and newlines
+                                for i, _ in enumerate(config_list):
+                                    config_list[i] = config_list[i].strip()
+                                self.drive_list[current_drive_type].append(config_list[0])
+                                del config_list[0]
+                                self.config_list[current_drive_type] = config_list
                     self.smart_conf_file = conf_file
                 except Exception:
                     msg = "Cannot read in config file [%s]." % conf_file
@@ -358,21 +370,26 @@ class Configuration:
             logger.debug('Trace:', exc_info=True)
             raise ValueError(msg)
 
-    # TODO write 4 different config_lists
     def write_smartd_conf_file(self):
         try:
             with open(self.smart_conf_file, 'w') as fp:
                 try:
                     fp.write(f'# This file was generated on {datetime.now():%d-%B-%Y %H:%m:%S} by '
-                             f'{APP_NAME} {APP_VERSION} - {APP_URL}')
-                    # if len(self.drive_list > 1): # WIP write 4 different config_lists
-                    print(self.drive_list)
-                    print(len(self.drive_list))
-                    for drive in self.drive_list:
-                        line = drive
-                        for arg in self.config_list:
-                            line += " " + arg
-                        fp.write(line + "\n")
+                             f'{APP_NAME} {APP_VERSION} - {APP_URL}\n')
+                    if self.global_drive_settings:
+                        drive_types = ['__spinning']
+                    else:
+                        drive_types = self.drive_types
+                        fp.write(f'##*# Multi drive type config enabled ##*#\n')
+                        fp.write(self.multi_drive_config_explanation + '\n\n')
+                    fp.write('\n\n')
+                    for drive_type in drive_types:
+                        fp.write(f'##*# {drive_type} drives type ##*#\n')
+                        for drive in self.drive_list[drive_type]:
+                            line = drive
+                            for arg in self.config_list[drive_type]:
+                                line += " " + arg
+                            fp.write(line + "\n")
                 except ValueError as e:
                     msg = 'Cannot write data in config file [%s].' % self.smart_conf_file
                     logger.error(msg)
@@ -615,7 +632,7 @@ class MainGuiApp:
         tabgroup = [[sg.Frame('Disk type options',
                               [
                                   [sg.Checkbox('Use spinning disk settings for all disk types', default=False,
-                                               key='global_settings',
+                                               key='global_drive_settings',
                                                enable_events=True)],
                                   [sg.TabGroup(tabs, pad=0)]
                               ])]]
@@ -711,8 +728,8 @@ class MainGuiApp:
                 self.configure_internal_alerts()
             elif event == 'raw_view':
                 self.raw_smartd_view()
-            elif event == 'global_settings':
-                if values['global_settings']:
+            elif event == 'global_drive_settings':
+                if values['global_drive_settings']:
                     self.window.Element('ssd_tab').Update(disabled=True)
                     self.window.Element('nvme_tab').Update(disabled=True)
                     self.window.Element('removable_tab').Update(disabled=True)
@@ -741,7 +758,11 @@ class MainGuiApp:
         return sg.T(' ' * pixels, font=('Helvetica', 1))
 
     def update_main_gui_config(self):
-        for drive_type in self.config.drive_types:
+        if self.config.global_drive_settings is True:
+            drive_types = self.config.drive_types
+        else:
+            drive_types = ['__spinning']
+        for drive_type in drive_types:
             try:
                 # Per drive_type drive_list and config_list
                 drive_list = self.config.drive_list[drive_type]
@@ -879,7 +900,12 @@ class MainGuiApp:
         self.alert_switcher(v)
 
     def get_main_gui_config(self, values):
-        for drive_type in self.config.drive_types:
+        if values['global_drive_settings'] is True:
+            self.config.global_drive_settings = True
+            drive_types = ['__spinning']
+        else:
+            drive_types = self.config.drive_types
+        for drive_type in drive_types:
             # Per drive_type list
             drive_list = []
             config_list = []
@@ -893,13 +919,13 @@ class MainGuiApp:
                 # TODO: needs to raise exception
 
                 if drive_list == []:
-                    msg = "Drive list is empty"
+                    msg = f"Drive list is empty for type [{drive_type}]."
                     logger.error(msg)
                     sg.PopupError(msg)
                     return False
 
                 if "example" in drive_list or "exemple" in drive_list:
-                    msg = "Drive list contains example !!!"
+                    msg = "Drive list contains example  for type [{drive_type}] !!!"
                     logger.error(msg)
                     sg.PopupError(msg)
                     return False
