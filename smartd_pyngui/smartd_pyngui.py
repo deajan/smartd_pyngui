@@ -41,6 +41,7 @@ APP_VERSION = '0.8-dev'
 APP_BUILD = '2020010401'
 APP_DESCRIPTION = 'smartd v5.4+ configuration interface'
 CONTACT = 'ozy@netpower.fr - http://www.netpower.fr'
+APP_URL = 'https://www.netpower.fr/smartmontools-win'
 COPYING = 'Written in 2012-2020'
 AUTHOR = 'Orsiris de Jong'
 
@@ -369,8 +370,11 @@ class Configuration:
         try:
             with open(self.smart_conf_file, 'w') as fp:
                 try:
-                    fp.write('# This file was generated on ' + str(
-                        datetime.now()) + ' by ' + APP_NAME + ' ' + APP_VERSION + ' - http://www.netpower.fr\n')
+                    fp.write(f'# This file was generated on {datetime.now():%d-%B-%Y %H:%m:%S} by '
+                             f'{APP_NAME} {APP_VERSION} - {APP_URL}')
+                    #if len(self.drive_list > 1): # WIP write 4 different config_lists
+                    print(self.drive_list)
+                    print(len(self.drive_list))
                     for drive in self.drive_list:
                         line = drive
                         for arg in self.config_list:
@@ -921,24 +925,27 @@ class MainGuiApp:
                     # Remove drive_type prefix
                     key = key[:-len(drive_type)]
 
-                    if values[key]:
-                        # Handle dependancies
-                        if key == '-C 197+':
-                            if '-C 197' in config_list:
-                                for (i, item) in enumerate(config_list):
-                                    if item == '-C 197':
-                                        config_list[i] = '-C 197+'
+                    try:
+                        if values[key]:
+                            # Handle dependancies
+                            if key == '-C 197+':
+                                if '-C 197' in config_list:
+                                    for (i, item) in enumerate(config_list):
+                                        if item == '-C 197':
+                                            config_list[i] = '-C 197+'
+                                else:
+                                    config_list.append(key)
+                            elif key == '-U 198+':
+                                if '-U 198' in config_list:
+                                    for (i, item) in enumerate(config_list):
+                                        if item == '-U 198':
+                                            config_list[i] = '-U 198+'
+                                else:
+                                    config_list.append(key)
                             else:
                                 config_list.append(key)
-                        elif key == '-U 198+':
-                            if '-U 198' in config_list:
-                                for (i, item) in enumerate(config_list):
-                                    if item == '-U 198':
-                                        config_list[i] = '-U 198+'
-                            else:
-                                config_list.append(key)
-                        else:
-                            config_list.append(key)
+                    except KeyError:
+                        logger.debug(f'No key [{key}] found in health parameters.')
 
             except KeyError:
                 msg = "Bogus configuration in health parameters."
@@ -952,14 +959,17 @@ class MainGuiApp:
                 for key, _ in self.temperature_parameter_map:
                     # Remove drive_type prefix
                     key = key[:-len(drive_type)]
-                    if values[key]:
-                        if key == '-W':
-                            config_list.append(
-                                key + ' ' + str(values['temp_diff' + drive_type]) + ',' + str(
-                                    values['temp_info' + drive_type]) + ',' + str(
-                                    values['temp_crit' + drive_type]))
-                        elif key == '-I 194':
-                            config_list.append(key)
+                    try:
+                        if values[key]:
+                            if key == '-W':
+                                config_list.append(
+                                    key + ' ' + str(values['temp_diff' + drive_type]) + ',' + str(
+                                        values['temp_info' + drive_type]) + ',' + str(
+                                        values['temp_crit' + drive_type]))
+                            elif key == '-I 194':
+                                config_list.append(key)
+                    except KeyError:
+                        logger.debug(f'No key [{key}] found in temperature parameters.')
             except Exception:
                 if key:
                     msg = "Bogus configuration in [%s] and temperatures." % key
