@@ -3,52 +3,51 @@
 A child class of configparser that reads and writes AES encrypted configuration files
 See configparser for usage
 
-ScrambledConfigParser behaves excactly like ConfigParser, except it has the following functions:
+ConfigParserCrypt behaves excactly like ConfigParser, except it has the following functions:
 
 aes_key = generate_key()
 set_key(aes_key)
 read_scrambled()
 write_scrambled()
 
-(C) 2019 by Orsiris de Jong - www.netpower.fr
+(C) 2019-2020 by Orsiris de Jong - www.netpower.fr
 """
 
-VERSION = '0.1.0'
-BUILD = 2019051401
-
-import configparser
+from configparser import ConfigParser
 import os
+from cryptography.fernet import Fernet
+from base64 import urlsafe_b64decode
 
-# Using pycryptodome (site-packages/Crypto)
-# Using pycryptodomex (site-packages/Cryptodome)
-from Cryptodome.Cipher import AES
-from Cryptodome.Random import get_random_bytes
+VERSION = '0.1.1'
+BUILD = 2020010701
 
-class ScrambledConfigParser(configparser.ConfigParser):
+
+class ConfigParserCrypt(ConfigParser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # By default, configparser sets all strings to lowercase, this option let's keep the case
         self.optionxform = str
-        self.writeData = ''
+        self.to_write_data = ''
 
         # AES cypto key with added random bytes
-        self.randomHeader = get_random_bytes(1337)
+        self.aes_key = None
+        self.randomHeader = os.urandom(1337)
         self.nullBytes = ('\x12' * 8192).encode()
-        self.randomFooter = get_random_bytes(421)
+        self.randomFooter = os.urandom(421)
 
     def set_key(self, aes_key):
-        if len(aes_key) is not 16 and len(aes_key) is not 32:
-            raise ValueError('AES Key should be 16 or 32 bytes, %s bytes given.' % len(aes_key))
+        if len(urlsafe_b64decode(aes_key)) is not 32:
+            raise ValueError('AES Key should be 16 or 32 bytes, %s bytes given.' % len(urlsafe_b64decode(aes_key)))
         self.aes_key = aes_key
 
     def generate_key(self):
         try:
-            self.aes_key = get_random_bytes(32)
+            self.aes_key = Fernet.generate_key()
             return self.aes_key
         except Exception as exc:
             raise ValueError('Cannot generate AES key: %s' % exc)
 
-    def read_scrambled(self, filenames, encoding=None):
+    def read_encrypted(self, filenames, encoding=None):
         """Read and parse a filename or an iterable of filenames.
 
         Files that cannot be opened are silently ignored; this is
@@ -66,10 +65,9 @@ class ScrambledConfigParser(configparser.ConfigParser):
         for filename in filenames:
             try:
                 with open(filename, 'rb') as fp:
-                    nonce, tag, ciphertext = [fp.read(x) for x in (16, 16, -1)]
                     try:
-                        cipher = AES.new(self.aes_key, AES.MODE_EAX, nonce)
-                        rawdata = cipher.decrypt_and_verify(ciphertext, tag)
+                        cipher = Fernet(self.aes_key)
+                        rawdata = cipher.decrypt(fp.read())
                         # Remove extra bytes, decode bytes to string, split into list as if lines were read from file
                         data = (rawdata[1337:][:-8192][:-421]).decode('utf-8').split('\n')
                     except Exception as exc:
@@ -82,29 +80,29 @@ class ScrambledConfigParser(configparser.ConfigParser):
             read_ok.append(filename)
         return read_ok
 
-    def write_scrambled(self, fp, space_around_delimiters=True):
+    def write_encrypted(self, fp, space_around_delimiters=True):
         """Write an .ini-format representation of the configuration state.
 
         If `space_around_delimiters' is True (the default), delimiters
         between keys and values are surrounded by spaces.
         """
 
-        self.writeData = ''
+        self.to_write_data = ''
 
         if space_around_delimiters:
             d = " {} ".format(self._delimiters[0])
         else:
             d = self._delimiters[0]
         if self._defaults:
-            self._write_section_scrambled(fp, self.default_section, self._defaults.items(), d)
+            self._write_section_encrypted(self.default_section, self._defaults.items(), d)
         for section in self._sections:
-            self._write_section_scrambled(fp, section, self._sections[section].items(), d)
+            self._write_section_encrypted(section, self._sections[section].items(), d)
 
         self.commit_write(fp)
 
-    def _write_section_scrambled(self, fp, section_name, section_items, delimiter):
+    def _write_section_encrypted(self, section_name, section_items, delimiter):
         """Write a single section to the specified `fp'."""
-        self.writeData += "[{}]\n".format(section_name)
+        self.to_write_data += "[{}]\n".format(section_name)
         for key, value in section_items:
             value = self._interpolation.before_write(self, section_name, key,
                                                      value)
@@ -112,15 +110,13 @@ class ScrambledConfigParser(configparser.ConfigParser):
                 value = delimiter + str(value).replace('\n', '\n\t')
             else:
                 value = ""
-            self.writeData += "{}{}\n".format(key, value)
-        self.writeData += "\n"
+            self.to_write_data += "{}{}\n".format(key, value)
+        self.to_write_data += "\n"
 
     def commit_write(self, fp):
         try:
-            cipher = AES.new(self.aes_key, AES.MODE_EAX)
-            ciphertext, tag = cipher.encrypt_and_digest(self.randomHeader + self.writeData.encode('utf-8')
-                                                        + self.nullBytes + self.randomFooter)
-            for x in (cipher.nonce, tag, ciphertext):
-                fp.write(x)
+            cipher = Fernet(self.aes_key)
+            fp.write(cipher.encrypt(self.randomHeader + self.to_write_data.encode('utf-8')
+                                    + self.nullBytes + self.randomFooter))
         except Exception as exc:
             raise ValueError('Cannot write AES data: %s' % exc)
