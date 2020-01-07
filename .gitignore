@@ -166,3 +166,6 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+
+/smartd_pyngui/*-32.json
+/smartd_pyngui/*-64.json
