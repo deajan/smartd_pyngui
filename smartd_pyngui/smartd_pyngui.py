@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+#TEMPERATURE DOES NOT WORK #TODO
+
 # IMPORTS ################################################################################################
 
 import os
@@ -13,7 +15,7 @@ from datetime import datetime
 import zlib
 import ofunctions
 import ofunctions.Mailer
-import scrambledconfigparser
+from configparsercrypt.configparserfernet import ConfigParserCrypt
 import json
 
 import PySimpleGUI.PySimpleGUI as sg
@@ -204,7 +206,7 @@ class Configuration:
         self.config_list_alerts = []
 
         # Contains smartd_pyngui alert settings
-        self.int_alert_config = scrambledconfigparser.ScrambledConfigParser()
+        self.int_alert_config = ConfigParserCrypt()
         self.int_alert_config.set_key(AES_ENCRYPTION_KEY)
 
         self.set_smartd_defaults()
@@ -416,7 +418,7 @@ class Configuration:
     def write_alert_config_file(self):
         if os.path.isdir(os.path.dirname(self.alert_conf_file)):
             with open(self.alert_conf_file, 'wb') as fp:
-                self.int_alert_config.write_scrambled(fp)
+                self.int_alert_config.write_encrypted(fp)
         else:
             msg = f'Cannot write [{self.alert_conf_file}]. Directory maybe be missing.'
             logger.error(msg)
@@ -426,7 +428,7 @@ class Configuration:
         if conf_file is None:
             conf_file = self.alert_conf_file
         try:
-            self.int_alert_config.read_scrambled(conf_file)
+            self.int_alert_config.read_encrypted(conf_file)
             self.alert_conf_file = conf_file
         except Exception:
             msg = f'Cannot read alert config file [{conf_file}].'

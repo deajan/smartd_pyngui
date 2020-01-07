@@ -1,4 +1,4 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-AES_ENCRYPTION_KEY = b'vND\x15\xcb\xde \xa0\xca\x97<\xe5\xa0\x06q\x11LKK\xadx#\x98h\xdd\x19I\xefS\xd7\x95\xaa'
+AES_ENCRYPTION_KEY = b'bXtdBq76pAIPDGN8mxCJq5NarjO_HG5pr6CpnUf-fCg='

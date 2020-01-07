@@ -1,12 +1,12 @@
 #! /usr/bin/env python
 #  -*- coding: utf-8 -*-
 
-from scrambledconfigparser import ScrambledConfigParser
+from configparsercrypt.configparserfernet import ConfigParserCrypt
 
 python_header = '#! /usr/bin/env python\n' \
                  '# -*- coding: utf-8 -*-\n\n'
 
-c = ScrambledConfigParser()
+c = ConfigParserCrypt()
 key = c.generate_key()
 
 body = 'AES_ENCRYPTION_KEY = %s' % key
