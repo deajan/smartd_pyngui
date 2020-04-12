@@ -1,31 +1,44 @@
-"""Configuration file parser
+#! /usr/bin/env python
+#  -*- coding: utf-8 -*-
 
-A child class of configparser that reads and writes AES encrypted configuration files
-See configparser for usage
+# This file is part of configparser_crypt module
 
-ConfigParserCrypt behaves excactly like ConfigParser, except it has the following functions:
-
-aes_key = generate_key()
-set_key(aes_key)
-read_encrypted()
-write_encrypted()
-
-(C) 2019-2020 by Orsiris de Jong - www.netpower.fr
 """
+The configparsercrypt module is a dropin replacement for configparser
+that allows read/write of symmetric encrypted ini files
+This submodule works with ciphers module
+ 
+"""
+
+__intname__ = 'configparser_crypt.fernet_backend'
+__author__ = 'Orsiris de Jong'
+__copyright__ = 'Copyright (C) 2019-2020 Orsiris de Jong'
+__licence__ = 'BSD 3 Clause'
+__version__ = '0.2.0'
+__build__ = '2020032701'
+
 
 from configparser import ConfigParser
 import os
-
-# Using pycryptodome (site-packages/Crypto)
-# Using pycryptodomex (site-packages/Cryptodome)
-from Cryptodome.Cipher import AES
-from Cryptodome.Random import get_random_bytes
-
-VERSION = '0.1.1'
-BUILD = 2020070101
+from cryptography.fernet import Fernet
+from base64 import urlsafe_b64decode
 
 
 class ConfigParserCrypt(ConfigParser):
+    """Configuration file parser
+    
+    A child class of configparser that reads and writes AES encrypted configuration files
+    See configparser for usage
+    
+    ConfigParserFernet behaves excactly like ConfigParser, except it has the following functions:
+    
+    aes_key = generate_key()
+    set_key(aes_key)
+    read_scrambled()
+    write_scrambled()
+    
+    (C) 2019-2020 by Orsiris de Jong - www.netpower.fr
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # By default, configparser sets all strings to lowercase, this option let's keep the case
@@ -34,23 +47,23 @@ class ConfigParserCrypt(ConfigParser):
 
         # AES cypto key with added random bytes
         self.aes_key = None
-        self.randomHeader = get_random_bytes(1337)
+        self.randomHeader = os.urandom(1337)
         self.nullBytes = ('\x12' * 8192).encode()
-        self.randomFooter = get_random_bytes(421)
+        self.randomFooter = os.urandom(421)
 
     def set_key(self, aes_key):
-        if len(aes_key) is not 16 and len(aes_key) is not 32:
-            raise ValueError('AES Key should be 16 or 32 bytes, %s bytes given.' % len(aes_key))
+        if len(urlsafe_b64decode(aes_key)) is not 32:
+            raise ValueError('AES Key should be 16 or 32 bytes, %s bytes given.' % len(urlsafe_b64decode(aes_key)))
         self.aes_key = aes_key
 
     def generate_key(self):
         try:
-            self.aes_key = get_random_bytes(32)
+            self.aes_key = Fernet.generate_key()
             return self.aes_key
         except Exception as exc:
             raise ValueError('Cannot generate AES key: %s' % exc)
 
-    def read_encrypted(self, filenames, encoding=None):
+    def read_encrypted(self, filenames, encoding=None, aes_key=None):
         """Read and parse a filename or an iterable of filenames.
 
         Files that cannot be opened are silently ignored; this is
@@ -68,10 +81,15 @@ class ConfigParserCrypt(ConfigParser):
         for filename in filenames:
             try:
                 with open(filename, 'rb') as fp:
-                    nonce, tag, ciphertext = [fp.read(x) for x in (16, 16, -1)]
                     try:
-                        cipher = AES.new(self.aes_key, AES.MODE_EAX, nonce)
-                        rawdata = cipher.decrypt_and_verify(ciphertext, tag)
+                        if aes_key is not None:
+                            cipher = Fernet(aes_key)
+                        elif self.aes_key is not None:
+                            cipher = Fernet(self.aes_key)
+                        else:
+                            raise ValueError('No aes key provided.')
+                        aes_key = None
+                        rawdata = cipher.decrypt(fp.read())
                         # Remove extra bytes, decode bytes to string, split into list as if lines were read from file
                         data = (rawdata[1337:][:-8192][:-421]).decode('utf-8').split('\n')
                     except Exception as exc:
@@ -84,7 +102,7 @@ class ConfigParserCrypt(ConfigParser):
             read_ok.append(filename)
         return read_ok
 
-    def write_encrypted(self, fp, space_around_delimiters=True):
+    def write_encrypted(self, fp, space_around_delimiters=True, aes_key=None):
         """Write an .ini-format representation of the configuration state.
 
         If `space_around_delimiters' is True (the default), delimiters
@@ -102,7 +120,7 @@ class ConfigParserCrypt(ConfigParser):
         for section in self._sections:
             self._write_section_encrypted(section, self._sections[section].items(), d)
 
-        self.commit_write(fp)
+        self.commit_write(fp, aes_key=aes_key)
 
     def _write_section_encrypted(self, section_name, section_items, delimiter):
         """Write a single section to the specified `fp'."""
@@ -117,11 +135,34 @@ class ConfigParserCrypt(ConfigParser):
             self.to_write_data += "{}{}\n".format(key, value)
         self.to_write_data += "\n"
 
-    def commit_write(self, fp):
+    def commit_write(self, fp, aes_key=None):
         try:
-            cipher = AES.new(self.aes_key, AES.MODE_EAX)
-            ciphertext, tag = cipher.encrypt_and_digest(self.randomHeader + self.to_write_data.encode('utf-8')
-                                                        + self.nullBytes + self.randomFooter)
-            [fp.write(x) for x in (cipher.nonce, tag, ciphertext)]
+            if aes_key is not None:
+                cipher = Fernet(aes_key)
+            elif self.aes_key is not None:
+                cipher = Fernet(self.aes_key)
+            else:
+                raise('No AES key provided.')
+            aes_key = None
+            fp.write(cipher.encrypt(self.randomHeader + self.to_write_data.encode('utf-8')
+                                    + self.nullBytes + self.randomFooter))
         except Exception as exc:
             raise ValueError('Cannot write AES data: %s' % exc)
+
+
+def _selftest():
+    print('Example code for %s, %s, %s' % (__intname__, __version__, __build__))
+    c = ConfigParserCrypt()
+    c.generate_key()
+    test_file = 'test_file'
+    c.add_section('TEST')
+    c['TEST']['spam'] = 'eggs'
+    with open(test_file, 'wb') as fp:
+        c.write_encrypted(fp)
+    c['TEST']['spam'] = 'No'
+    c.read_encrypted(test_file)
+    print('spam = %s' % c['TEST']['spam'])
+
+
+if __name__ == '__main__':
+    _selftest()
