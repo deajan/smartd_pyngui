@@ -18,8 +18,8 @@ __intname__ = 'smartd_pyngui.smartctl_wrapper'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2014-2020 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '2.0.0'
-__build__ = '2020040201'
+__version__ = '2.1.0'
+__build__ = '2020041201'
 
 import json
 from logging import getLogger
@@ -29,47 +29,50 @@ logger = getLogger()
 
 
 def get_disks():
-    # Assume that we will use smartctl in order to detect disk types instead of WMI
-    # use smartctl --scan-open to list drives
+    """
+    Lists all disks found by smartctl and tries to identify disk_type:
+    - ssd, spinning, nvme or unknwown where unknown are disks smartctl cannot handle
 
-    # Contains array of disks like [name, type] where type = ssd, spinning or nvme
+
+    :return: (list) list of dictionaries with keys: name, info_name, type, protocol, disk_type
+    """
+
     disk_list = []
 
     result, output = command_runner('"smartctl" --scan-open --json')
     if result != 0:
         return None
-    else:
-        disks = json.loads(output)
-        for disk in disks['devices']:
-            # Before adding disks to disk list, we need to check whether the SMART attributes can be read
-            # This is specially usefull to filter raid member drives
 
-            result, output = command_runner(f'"smartctl" --info --json {disk["name"]}',
-                                            valid_exit_codes=[0, 1], timeout=60)
-            if result != 0:
-                # Don't add drives that can't be opened
-                continue
+    disks = json.loads(output)
+    for disk in disks['devices']:
+        # Before adding disks to disk list, we need to check whether the SMART attributes can be read
+        # This is specially usefull to filter raid member drives
+
+        result, output = command_runner(f'"smartctl" --info --json {disk["name"]}',
+                                        valid_exit_codes=[0, 1], timeout=60)
+        if result != 0:
+            # Don't add drives that can't be opened
+            continue
+
+        # disk['type'] is already correct for nvme disks
+        disk_detail = json.loads(output)
+
+        try:
+            # set disk_type for nvme disks
+            if disk['type'] == 'nvme':
+                disk['disk_type'] = 'nvme'
+            # Determnie if disk is spinning
+            elif disk_detail['rotation_rate'] == 'Solid State Device':
+                disk['disk_type'] = 'ssd'
+            elif int(disk_detail['rotation_rate']) != 0:
+                disk['disk_type'] = 'spinning'
             else:
-                # disk['type'] is already correct for nvme disks
-
-                disk_detail = json.loads(output)
-
-                try:
-                    # set dtype for nvme disks
-                    if disk['type'] == 'nvme':
-                        disk['disk_type'] = 'nvme'
-                    # Determnie if disk is spinning
-                    elif disk_detail['rotation_rate'] == 'Solid State Device':
-                        disk['disk_type'] = 'ssd'
-                    elif int(disk_detail['rotation_rate']) != 0:
-                        disk['disk_type'] = 'spinning'
-                    else:
-                        disk['disk_type'] = 'unknown'
-                except (TypeError, KeyError):
-                    disk['disk_type'] = 'unknown'
-                    logger.debug('Trace', exc_info=True)
-            disk_list.append(disk)
-        return disk_list
+                disk['disk_type'] = 'unknown'
+        except (TypeError, KeyError):
+            disk['disk_type'] = 'unknown'
+            logger.debug('Trace', exc_info=True)
+        disk_list.append(disk)
+    return disk_list
 
 
 def get_smart_state(disk_index):
@@ -119,32 +122,27 @@ def get_smart_state(disk_index):
         else:
             smartstate = True
         return smartstate
-    else:
-        return None
+    return None
 
 
-def get_smart_info(disk_name):
-    result, output = command_runner('"smartctl" --all {0}'.format(disk_name))
+def get_smart_info(disk_name, json_output=False):
+    """
+    Get smart disk info
+
+    :param disk_name: (str) disk name that smartctl can handle (ie /dev/sda, /dev/pd0, /dev/csmi1,0 ...
+    :param json_output: (bool) return as json or string
+    :return: (str) smartctl standard output
+    """
+    result, output = command_runner('"smartctl" --all {0} {1}'.format('--json' if json_output else '', disk_name))
     if result != 0:
         return output
-    else:
-        return None
-
-
-def get_smart_info_old(disk_list):
-    general_output = ""
-
-    for disk in disk_list:
-        if disk['disk_type'] != 'unknown':
-            result, output = command_runner(f'"smartctl --all {disk["name"]}',
-                                            valid_exit_codes=[0, 4], timeout=60)
-            if result != 0:
-                general_output = f'{general_output}\n\nDisk {disk["name"]}\n{output}'
-    return general_output
+    return None
 
 
 def _selftest():
     print(get_disks())
+    for disk in get_disks():
+        print(get_smart_info(disk['name']))
 
 
 if __name__ == '__main__':
