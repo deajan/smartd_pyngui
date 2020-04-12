@@ -1282,8 +1282,7 @@ def system_service_handler(service, action):
         service_status = win32serviceutil.QueryServiceStatus(service)
         if service_status[1] == 4:
             return True
-        else:
-            return False
+        return False
 
     if os.name == 'nt':
         is_running = nt_service_status(service)
@@ -1292,40 +1291,38 @@ def system_service_handler(service, action):
             if is_running:
                 logger.info(msg_already_running)
                 return True
-            else:
-                logger.info(msg_action)
-                try:
-                    # Does not provide return code, so we need to check manually
-                    win32serviceutil.StartService(service)
-                    while not is_running and loops < max_wait:
-                        is_running = nt_service_status(service)
-                        if is_running:
-                            logger.info(msg_success)
-                            return True
-                        else:
-                            sleep(2)
-                            loops += 2
-                    logger.error(msg_too_long)
-                    raise Exception
-                except Exception:
-                    logger.error(msg_failure)
-                    logger.debug('Trace', exc_info=True)
-                    raise Exception
+            logger.info(msg_action)
+            try:
+                # Does not provide return code, so we need to check manually
+                win32serviceutil.StartService(service)
+                while not is_running and loops < max_wait:
+                    is_running = nt_service_status(service)
+                    if is_running:
+                        logger.info(msg_success)
+                        return True
+                    else:
+                        sleep(2)
+                        loops += 2
+                logger.error(msg_too_long)
+                raise Exception
+            except Exception:
+                logger.error(msg_failure)
+                logger.debug('Trace', exc_info=True)
+                raise Exception
 
         elif action == "stop":
             if not is_running:
                 logger.info(msg_not_running)
                 return True
-            else:
-                logger.info(msg_action)
-                try:
-                    win32serviceutil.StopService(service)
-                    logger.info(msg_success)
-                    return True
-                except Exception:
-                    logger.error(msg_failure)
-                    logger.debug('Trace:', exc_info=True)
-                    raise Exception
+            logger.info(msg_action)
+            try:
+                win32serviceutil.StopService(service)
+                logger.info(msg_success)
+                return True
+            except Exception:
+                logger.error(msg_failure)
+                logger.debug('Trace:', exc_info=True)
+                raise Exception
 
         elif action == "restart":
             system_service_handler(service, 'stop')
@@ -1359,10 +1356,9 @@ def system_service_handler(service, action):
                     if result == 0:
                         logger.info(msg_success)
                         return True
-                    else:
-                        logger.error(f'Could not start service, code [{result}].')
-                        logger.error(f'Output:\n{output}')
-                        raise Exception
+                    logger.error(f'Could not start service, code [{result}].')
+                    logger.error(f'Output:\n{output}')
+                    raise Exception
                 except Exception:
                     logger.info(msg_failure)
                     logger.debug('Trace:', exc_info=True)
@@ -1379,10 +1375,9 @@ def system_service_handler(service, action):
                     if result == 0:
                         logger.info(msg_success)
                         return True
-                    else:
-                        logger.error(f'Could not start service, code [{result}].')
-                        logger.error(f'Output:\n{output}')
-                        raise Exception
+                    logger.error(f'Could not start service, code [{result}].')
+                    logger.error(f'Output:\n{output}')
+                    raise Exception
                 except Exception:
                     logger.error(msg_failure)
                     logger.debug('Trace:', exc_info=True)
