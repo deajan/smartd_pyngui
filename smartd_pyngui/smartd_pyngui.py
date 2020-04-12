@@ -23,11 +23,6 @@ import PySimpleGUI.PySimpleGUI as sg
 # Module pywin32
 if os.name == 'nt':
     import win32serviceutil
-    # import ctypes  # In order to perform UAC check with ctypes.windll.shell32.ShellExecuteW()
-    import win32event  # monitor process
-    import win32process  # monitor process
-    from win32com.shell.shell import ShellExecuteEx
-    from win32com.shell import shellcon
 
 # On Windows nuitka distribs, set the tkinter library path below the distribution
 if sys.argv[0].endswith(".exe") or sys.argv[0].endswith(".EXE"):
