@@ -7,8 +7,8 @@
 
 import os
 import sys
-import platform  # Detect OS
-import re  # Regex handling
+import platform
+import re
 from time import sleep
 import json
 from datetime import datetime
@@ -79,11 +79,13 @@ IS_STABLE = False
 
 # LOGGING & DEBUG CODE ####################################################################################
 
-_DEBUG = os.environ.get('_DEBUG', False)
+DEBUGGING = False
+if os.environ.get('_DEBUG', False) == 'True':
+    DEBUGGING = True
 if IS_STABLE is False:
-    _DEBUG = True
+    DEBUGGING = True
 
-logger = ofunctions.logger_get_logger(LOG_FILE, debug=_DEBUG)
+logger = ofunctions.logger_get_logger(LOG_FILE, debug=DEBUGGING)
 
 
 # ACTUAL APPLICATION ######################################################################################
@@ -318,7 +320,7 @@ class Configuration:
             msg = 'Cannot read from config file [%s].' % conf_file
             logger.error(msg)
             logger.debug('Trace:', exc_info=True)
-            sg.Popup('Read configuration fialed: {0}.'.format(msg))
+            sg.Popup('Read configuration failed: {0}.'.format(msg))
 
     def write_smartd_conf_file(self):
         try:
@@ -1444,7 +1446,9 @@ def trigger_alert(config, mode=None):
             disks = smartctl_wrapper.get_disks()
             for disk in disks:
                 if disk['type'] != 'unknown':
-                    smartctl_output = smartctl_output + smartctl_wrapper.get_smart_info(disk['name'])
+                    disk_smart_state = smartctl_wrapper.get_smart_info(disk['name'])
+                    if disk_smart_state:
+                        smartctl_output = smartctl_output + disk_smart_state
             attachment = zlib.compress(smartctl_output.encode('utf-8'))
         except Exception:
             logger.error('Cannot get smartctl output.')
@@ -1457,7 +1461,7 @@ def trigger_alert(config, mode=None):
                                                    smtp_port=smtp_port,
                                                    smtp_user=smtp_user, smtp_password=smtp_password, security=security,
                                                    subject=subject, attachment=attachment,
-                                                   filename='smartctl_output.zip',
+                                                   filename='smartctl_output.zip', priority=True,
                                                    body=warning_message, debug=True)  # TODO remove debug True
                 # WIP
                 logger.info(f'Mailer result [{ret}].')
@@ -1544,6 +1548,5 @@ def main(argv):
         sys.exit(1)
 
 
-# Improved answer I have done in https://stackoverflow.com/a/49759083/2635443
 if __name__ == '__main__':
     elevate(main, sys.argv)
