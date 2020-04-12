@@ -1110,6 +1110,8 @@ class MainGuiApp:
                 if event == 'Back' or event is None:
                     raw_view_window.Close()
                     break
+        else:
+            sg.Popup('Config file cannot be opened.')
 
     def configure_internal_alerts(self):
         current_conf_file = None
@@ -1119,7 +1121,7 @@ class MainGuiApp:
                               [[sg.InputText('', key='conf_file',
                                              enable_events=True, do_not_clear=True, size=(55, 1)),
                                 self.spacer_tweakf(), sg.FileBrowse(target='conf_file')],
-                               [self.spacer_tweakf(500)],
+                               [self.spacer_tweakf(450)],
                                ])]
                     ]
 
@@ -1153,14 +1155,14 @@ class MainGuiApp:
                                                ]),
 
                                            ],
-                                           [self.spacer_tweakf(550)],
+                                           [self.spacer_tweakf(450)],
                                            ],
                                           )]]
 
         local_alert_settings = [[sg.Frame('Local alert settings',
                                           [[sg.Checkbox('Send local alerts on screen / RDS Session',
                                                         key='LOCAL_ALERT')],
-                                           [self.spacer_tweakf(600)],
+                                           [self.spacer_tweakf(450)],
                                            ],
                                           )]]
         full_layout = [
@@ -1170,7 +1172,7 @@ class MainGuiApp:
             [sg.Column(local_alert_settings)]
         ]
 
-        layout = [[sg.Column(full_layout, scrollable=True, vertical_scroll_only=True, size=(470, 550))],
+        layout = [[sg.Column(full_layout, scrollable=True, vertical_scroll_only=True, size=(470, 420))],
                   [sg.T('')],
                   [sg.T(' ' * 70), sg.Button('Save & trigger test alert'), self.spacer_tweakf(),
                    sg.Button('Save & go back')]
@@ -1180,7 +1182,7 @@ class MainGuiApp:
         try:
             self.alert_window = sg.Window(APP_NAME + ' - ' + APP_VERSION + ' ' + APP_BUILD, icon=ICON_FILE,
                                           resizable=True,
-                                          size=(500, 600),
+                                          size=(500, 470),
                                           text_justification='left').Layout(layout)
         except Exception as exc:
             logger.critical(exc)
