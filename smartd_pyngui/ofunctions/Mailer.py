@@ -17,8 +17,8 @@ __intname__ = 'ofunctions.mailer'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2014-2020 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '0.2.0'
-__build__ = '2020041001'
+__version__ = '0.2.2'
+__build__ = '2020041202'
 
 
 import os
@@ -34,11 +34,11 @@ import re
 
 def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp_server='localhost', smtp_port=25,
                smtp_user=None, smtp_password=None, security=None, subject=None, body=None, attachment=None,
-               filename=None, html_enabled=False, bcc_mails=None,priority=False, debug=False):
+               filename=None, html_enabled=False, bcc_mails=None, priority=False, debug=False):
     """
 
     :param source_mail:
-    :param destination_mails: Accepts space separated email addresses or list of email addresses
+    :param destination_mails: Accepts space, comma or semi-colon separated email addresses or list of email addresses
     :param split_mails: When multiple mails exist, shall we create an email per addresss or an unique one
     :param smtp_server:
     :param smtp_port:
@@ -67,26 +67,22 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
 
     if destination_mails is None:
         raise ValueError('No destination mails set')
-    elif isinstance(list, destination_mails):
-        # Make sure destination mails is a list
-        destination_mails = destination_mails.split(' ')
 
-    for destination_mail in destination_mails:
+    def _send_email(address):
+        nonlocal filename
 
         # Create a multipart message and set headers
         message = MIMEMultipart()
         message["From"] = source_mail
-        if split_mails:
-            message["To"] = destination_mail
-        else:
-            message["To"] = ' '.join(destination_mails)
+        message["To"] = destination_mail
         message["Subject"] = subject
 
         if bcc_mails is not None:
             message["Bcc"] = bcc_mails  # Recommended for mass emails
 
         if priority:
-            message["X-Priority"] = 2
+            message["X-Priority"] = '2'
+            message['X-MSMail-Priority'] = 'High'
 
         # Add body to email
         if body is not None:
@@ -155,26 +151,33 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
                     if smtp_user is not None and smtp_password is not None:
                         remote_server.login(smtp_user, smtp_password)
                     remote_server.sendmail(source_mail, destination_mails, text)
-        except ConnectionRefusedError as e:
-            return e
-        except ConnectionAbortedError as e:
-            return e
-        except ConnectionResetError as e:
-            return e
-        except ConnectionError as e:
-            return e
-        except socket.gaierror as e:
-            return e
-        except smtplib.SMTPNotSupportedError as e:
+        except ConnectionRefusedError as exc:
+            return exc
+        except ConnectionAbortedError as exc:
+            return exc
+        except ConnectionResetError as exc:
+            return exc
+        except ConnectionError as exc:
+            return exc
+        except socket.gaierror as exc:
+            return exc
+        except smtplib.SMTPNotSupportedError as exc:
             # Server does not support STARTTLS
-            return e
-        except ssl.SSLError as e:
-            return e
-        except smtplib.SMTPAuthenticationError as e:
-            return e
+            return exc
+        except ssl.SSLError as exc:
+            return exc
+        except smtplib.SMTPAuthenticationError as exc:
+            return exc
 
-        if not split_mails:
-            break
+    if not isinstance(destination_mails, list):
+        # Make sure destination mails is a list
+        destination_mails = re.split(r',|;| ', destination_mails)
+
+    if not split_mails:
+        for destination_mail in destination_mails:
+            _send_email(destination_mail)
+    else:
+        _send_email(','.join(destination_mails))
 
     return True
 
