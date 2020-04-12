@@ -14,6 +14,7 @@ import json
 from datetime import datetime
 import zlib
 from command_runner.elevate import elevate
+from command_runner import command_runner
 import ofunctions.Mailer
 from configparser_crypt.fernet_backend import ConfigParserCrypt
 from smartmontools_wrapper import smartctl_wrapper
@@ -33,7 +34,7 @@ if sys.argv[0].endswith(".exe") or sys.argv[0].endswith(".EXE"):
 
 APP_NAME = 'smartd_pyngui'  # Stands for smart daemon python native gui
 APP_VERSION = '1.0-dev'
-APP_BUILD = '2020010401'
+APP_BUILD = '2020041201'
 APP_DESCRIPTION = 'smartd v5.4+ configuration interface'
 CONTACT = 'ozy@netpower.fr - http://www.netpower.fr'
 APP_URL = 'https://www.netpower.fr/smartmontools-win'
@@ -1340,7 +1341,7 @@ def system_service_handler(service, action):
         # service_status = os.system("service " + service + " status > /dev/null 2>&1")
 
         # Valid exit code are 0 and 3 (because of systemctl using a service redirect)
-        service_status, _ = ofunctions.command_runner(f'service "{service}" status')
+        service_status, _ = command_runner(f'service "{service}" status')
         if service_status == 0:
             is_running = True
         else:
@@ -1354,7 +1355,7 @@ def system_service_handler(service, action):
                 logger.info(msg_action)
                 try:
                     # result = os.system('service ' + service + ' start > /dev/null 2>&1')
-                    result, output = ofunctions.command_runner(f'service "{service} start')
+                    result, output = command_runner(f'service "{service} start')
                     if result == 0:
                         logger.info(msg_success)
                         return True
@@ -1374,7 +1375,7 @@ def system_service_handler(service, action):
                 logger.info(msg_action)
                 try:
                     # result = os.system('service ' + service + ' stop > /dev/null 2>&1')
-                    result, output = ofunctions.command_runner(f'service "{service}" stop')
+                    result, output = command_runner(f'service "{service}" stop')
                     if result == 0:
                         logger.info(msg_success)
                         return True
@@ -1493,7 +1494,7 @@ def trigger_alert(config, mode=None):
             # Alert all users on terminal
             command = f'wall "{warning_message}"'
         try:
-            exit_code, output = ofunctions.command_runner(command)
+            exit_code, output = command_runner(command)
             if exit_code != 0:
                 msg = f'Running local alert failed with exit code [{exit_code}].'
                 logger.error(msg)
