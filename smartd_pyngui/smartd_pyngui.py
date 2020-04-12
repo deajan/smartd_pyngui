@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#TEMPERATURE DOES NOT WORK #TODO
+# TEMPERATURE DOES NOT WORK #TODO
 
 # IMPORTS ################################################################################################
 
@@ -81,12 +81,6 @@ from PRIVATE.aes_key import AES_ENCRYPTION_KEY
 _DEBUG = os.environ.get('_DEBUG', False)
 if IS_STABLE is False:
     _DEBUG = True
-
-# Use for logging tracebacks
-# except Exception as e:
-#     logger.error('Failed to open file', exc_info=True)
-# You can also call logger.exception(msg, *args), it equals to logger.error(msg, exc_info=True, *args)
-
 
 logger = ofunctions.logger_get_logger(LOG_FILE, debug=_DEBUG)
 
@@ -345,16 +339,14 @@ class Configuration:
                             for arg in self.config_list[drive_type]:
                                 line += " " + arg
                             fp.write(line + "\n")
-                except ValueError as e:
-                    msg = f'Cannot write data in config file [{self.smart_conf_file}].'
+                except ValueError as exc:
+                    msg = 'Cannot write data in config file [{0}]: {1}'.format(self.smart_conf_file, exc)
                     logger.error(msg)
-                    logger.error(e)
                     logger.debug('Trace', exc_info=True)
                     raise ValueError(msg)
-        except Exception as e:
-            msg = f'Cannot write to config file [{self.smart_conf_file}].'
+        except Exception as exc:
+            msg = 'Cannot write to config file [{0}]: {1}'.format(self.smart_conf_file, exc)
             logger.error(msg)
-            logger.error(e)
             logger.debug('Trace', exc_info=True)
             raise ValueError(msg)
 
@@ -617,8 +609,8 @@ class MainGuiApp:
             self.window = sg.Window(APP_NAME + ' - ' + APP_VERSION + ' ' + APP_BUILD, icon=ICON_FILE, resizable=True,
                                     size=(766, 600),
                                     text_justification='left').Layout(layout)
-        except Exception as e:
-            logger.critical(e)
+        except Exception as exc:
+            logger.critical(exc)
             logger.debug('Trace', exc_info=True)
             sys.exit(1)
 
@@ -672,7 +664,7 @@ class MainGuiApp:
             elif event == 'drive_manual':
                 self.window.Element('drive_list_widget').Update(disabled=False,
                                                                 background_color=self.color_green_enabled)
-            elif event == 'use_system_mailer' or event == 'use_internal_alert' or event == 'use_external_script':
+            elif event in ['use_system_mailer', 'use_internal_alert', 'use_external_script']:
                 self.alert_switcher(values)
             elif event == 'smart_conf_file':
                 try:
@@ -710,7 +702,7 @@ class MainGuiApp:
                     if drive['disk_type'] == 'nvme':
                         self.window.Element('drive_list_widget__nvme').Update(
                             drive['name'] + '\n' + self.window.Element('drive_list_widget__nvme').Get())
-                    elif drive ['disk_type'] == 'ssd':
+                    elif drive['disk_type'] == 'ssd':
                         self.window.Element('drive_list_widget__ssd').Update(
                             drive['name'] + '\n' + self.window.Element('drive_list_widget__ssd').Get())
                     elif drive['disk_type'] == 'spinning':
@@ -755,7 +747,7 @@ class MainGuiApp:
 
             try:
                 if drive_type == '__spinning':
-                    if drive_list == ['DEVICESCAN']: #TODO devicescan must be disabled if multi disk types is used
+                    if drive_list == ['DEVICESCAN']:  # TODO devicescan must be disabled if multi disk types is used
                         self.window.Element('drive_auto' + drive_type).Update(True)
                     else:
                         self.window.Element('drive_manual' + drive_type).Update(True)
@@ -868,20 +860,20 @@ class MainGuiApp:
         # -m <nomailer> -M exec PATH/script = use external_script
 
         # By default, let's assume we use the internal mailer
-        v = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
+        alert_action = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
         for index, value in enumerate(self.config.config_list_alerts):
             if '-M exec' in value:
                 ext_script = self.config.config_list_alerts[index].replace('-M exec ', '', 1)
                 if APP_NAME in ext_script:
-                    v = {'use_internal_alert': True, 'use_system_mailer': False, 'use_external_script': False}
+                    alert_action = {'use_internal_alert': True, 'use_system_mailer': False, 'use_external_script': False}
                 else:
-                    v = {'use_internal_alert': False, 'use_system_mailer': False, 'use_external_script': True}
+                    alert_action = {'use_internal_alert': False, 'use_system_mailer': False, 'use_external_script': True}
                     self.window.Element('external_script_path').Update(ext_script)
             elif '-m' in value:
                 mail_addresses = self.config.config_list_alerts[index].replace('-m ', '', 1)
                 self.window.Element('mail_addresses').Update(mail_addresses)
-                v = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
-        self.alert_switcher(v)
+                alert_action = {'use_internal_alert': DEFAULT_UNIX_PATH, 'use_system_mailer': True, 'use_external_script': False}
+        self.alert_switcher(alert_action)
 
     def get_main_gui_config(self, values):
         if values['global_drive_settings'] is True:
@@ -987,10 +979,9 @@ class MainGuiApp:
                     energy_list += ',q'
 
                     config_list.append(energy_list)
-            except Exception as e:
-                msg = 'Energy config error'
+            except Exception as exc:
+                msg = 'Energy config error: {0}'.format(exc)
                 logger.error(msg)
-                logger.error(e)
                 logger.debug('Trace', exc_info=True)
                 sg.PopupError(msg)
                 return False
@@ -1031,10 +1022,9 @@ class MainGuiApp:
                 if tests_regex is not None:
                     config_list.append(tests_regex)
 
-            except Exception as e:
-                msg = 'Test regex creation error'
+            except Exception as exc:
+                msg = 'Test regex creation error: {0}'.format(exc)
                 logger.error(msg)
-                logger.error(e)
                 logger.debug('Trace', exc_info=True)
                 sg.PopupError(msg)
                 return False
@@ -1089,10 +1079,9 @@ class MainGuiApp:
     def service_reload():
         try:
             system_service_handler(SMARTD_SERVICE_NAME, "restart")
-        except Exception as e:
-            msg = "Cannot restart [" + SMARTD_SERVICE_NAME + "]. Running as admin ? See logs for details."
+        except Exception as exc:
+            msg = 'Cannot restart [" + SMARTD_SERVICE_NAME + "]. Running as admin ? {0}'.format(exc)
             logger.error(msg)
-            logger.error(e)
             logger.debug('Trace', exc_info=True)
             sg.PopupError(msg)
             return False
@@ -1192,8 +1181,8 @@ class MainGuiApp:
                                           resizable=True,
                                           size=(500, 600),
                                           text_justification='left').Layout(layout)
-        except Exception as e:
-            logger.critical(e)
+        except Exception as exc:
+            logger.critical(exc)
             logger.debug('Trace', exc_info=True)
             sys.exit(1)
 
@@ -1470,8 +1459,8 @@ def trigger_alert(config, mode=None):
                 # WIP
                 logger.info(f'Mailer result [{ret}].')
 
-            except Exception as e:
-                msg = f'Cannot send email: {e}'
+            except Exception as exc:
+                msg = 'Cannot send email: {0}'.format(exc)
                 logger.error(msg)
                 logger.debug('Trace', exc_info=True)
                 raise ValueError(msg)
@@ -1496,8 +1485,8 @@ def trigger_alert(config, mode=None):
                 logger.error(msg)
                 logger.error(f'Additional output:\n{output}')
                 raise ValueError(msg)
-        except Exception as e:
-            msg = f'Cannot run alert program: {e}'
+        except Exception as exc:
+            msg = 'Cannot run alert program: {0}'.format(exc)
             logger.error(msg)
             logger.debug('Trace', exc_info=True)
             raise ValueError(msg)
