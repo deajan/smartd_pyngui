@@ -134,7 +134,7 @@ def get_smart_info(disk_name, json_output=False):
     :return: (str) smartctl standard output
     """
     result, output = command_runner('"smartctl" --all {0} {1}'.format('--json' if json_output else '', disk_name))
-    if result != 0:
+    if result == 0:
         return output
     return None
 
