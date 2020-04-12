@@ -1,6 +1,27 @@
 #! /usr/bin/env python
 #  -*- coding: utf-8 -*-
+#
+# This file is part of ofunctions module
 
+"""
+ofunctions is a general library for basic repetitive tasks that should be no brainers :)
+
+Versionning semantics:
+    Major version: backward compatibility breaking changes
+    Minor version: New functionnality
+    Patch version: Backwards compatible bug fixes
+
+"""
+
+__intname__ = 'ofunctions.mailer'
+__author__ = 'Orsiris de Jong'
+__copyright__ = 'Copyright (C) 2014-2020 Orsiris de Jong'
+__licence__ = 'BSD 3 Clause'
+__version__ = '0.2.0'
+__build__ = '2020041001'
+
+
+import os
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -8,12 +29,12 @@ from email.mime.text import MIMEText
 import smtplib
 import ssl
 import socket
-import os
+import re
 
 
 def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp_server='localhost', smtp_port=25,
                smtp_user=None, smtp_password=None, security=None, subject=None, body=None, attachment=None,
-               filename=None, html_enabled=False, bcc_mails=None, debug=False):
+               filename=None, html_enabled=False, bcc_mails=None,priority=False, debug=False):
     """
 
     :param source_mail:
@@ -30,6 +51,7 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
     :param filename: If filename is given, we suppose attachment is inline binary data
     :param html_enabled:
     :param bcc_mails:
+    :param priority: (bool) set to true to add a high priority flag
     :param debug:
     :return:
     """
@@ -62,6 +84,9 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
 
         if bcc_mails is not None:
             message["Bcc"] = bcc_mails  # Recommended for mass emails
+
+        if priority:
+            message["X-Priority"] = 2
 
         # Add body to email
         if body is not None:
@@ -152,3 +177,10 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
             break
 
     return True
+
+
+def is_mail_address(string):
+    if re.match(r'[^@\s]+@[^@\s]+\.[a-zA-Z0-9]+$', string):
+        return True
+    else:
+        return False
