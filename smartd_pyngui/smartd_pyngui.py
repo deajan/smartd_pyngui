@@ -53,7 +53,7 @@ IS_STABLE = False
 
 from icon import ICON_FILE, TOOLTIP_IMAGE
 
-from aes_key import AES_ENCRYPTION_KEY
+from PRIVATE.aes_key import AES_ENCRYPTION_KEY
 
 # DEV NOTES ###############################################################################################
 
@@ -149,7 +149,7 @@ class Configuration:
 
         # Contains smartd_pyngui alert settings
         self.int_alert_config = ConfigParserCrypt()
-        self.int_alert_config.set_key(AES_ENCRYPTION_KEY)
+        self.int_alert_config.set_key(ofunctions.revac(AES_ENCRYPTION_KEY))
 
         self.set_smartd_defaults()
         self.set_alert_defaults()
@@ -318,11 +318,12 @@ class Configuration:
                 self.smart_conf_file = conf_file
             self.drive_list = drive_list
             self.config_list = config_list
+            sg.Popup('Read configuration succeed')
         except IOError:
             msg = 'Cannot read from config file [%s].' % conf_file
             logger.error(msg)
             logger.debug('Trace:', exc_info=True)
-            raise ValueError(msg)
+            sg.Popup('Read configuration fialed: {0}.'.format(msg))
 
     def write_smartd_conf_file(self):
         try:
@@ -467,7 +468,7 @@ class MainGuiApp:
         tab_layout = {}
         for drive_type in self.config.drive_types:
             if drive_type == '__spinning':
-                drive_selection = [[sg.Radio('Automatic', group_id='drive_detection' + drive_type,
+                drive_selection = [[sg.Radio('All found', group_id='drive_detection' + drive_type,
                                              key='drive_auto' + drive_type, enable_events=True)],
                                    [sg.Radio('Manual drive list', group_id='drive_detection' + drive_type,
                                              key='drive_manual' + drive_type,
@@ -1520,12 +1521,16 @@ def main(argv):
             logger.debug(f'Drive list for {drive_type}:{config.drive_list[drive_type]}')
             logger.debug(f'Config for {drive_type}:{config.config_list[drive_type]}')
     except ValueError:
-        logger.info('Using default smartd configuration.')
+        msg = 'No smartd config file found, using default smartd configuration.'
+        logger.info(msg)
+        sg.Popup(msg)
 
     try:
         config.read_alert_config_file()
     except ValueError:
-        logger.info('Using default alert configuration.')
+        msg = 'No alert config file found, using default alert configuration.'
+        logger.info(msg)
+        sg.Popup(msg)
 
     try:
         if len(argv) > 1:
