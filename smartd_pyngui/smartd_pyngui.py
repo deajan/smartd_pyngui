@@ -20,6 +20,10 @@ from configparser_crypt.fernet_backend import ConfigParserCrypt
 from smartmontools_wrapper import smartctl_wrapper
 
 import PySimpleGUI.PySimpleGUI as sg
+from icon import ICON_FILE, TOOLTIP_IMAGE
+
+from PRIVATE.aes_key import AES_ENCRYPTION_KEY
+
 
 # Module pywin32
 if os.name == 'nt':
@@ -51,9 +55,6 @@ DEFAULT_UNIX_PATH = '/etc/smartd'
 
 IS_STABLE = False
 
-from icon import ICON_FILE, TOOLTIP_IMAGE
-
-from PRIVATE.aes_key import AES_ENCRYPTION_KEY
 
 # DEV NOTES ###############################################################################################
 
@@ -281,8 +282,8 @@ class Configuration:
         if conf_file is None:
             conf_file = self.smart_conf_file
         try:
-            with open(conf_file, 'r') as fp:
-                for line in fp:
+            with open(conf_file, 'r') as conf:
+                for line in conf:
                     if line[0] != "\n" and line[0] != "\r" and line[0] != " ":
                         if line.startswith('##*# Multi drive type config enabled ##*#'):
                             self.global_drive_settings = True
@@ -321,24 +322,24 @@ class Configuration:
 
     def write_smartd_conf_file(self):
         try:
-            with open(self.smart_conf_file, 'w') as fp:
+            with open(self.smart_conf_file, 'w') as conf:
                 try:
-                    fp.write(f'# This file was generated on {datetime.now():%d-%B-%Y %H:%m:%S} by '
+                    conf.write(f'# This file was generated on {datetime.now():%d-%B-%Y %H:%m:%S} by '
                              f'{APP_NAME} {APP_VERSION} - {APP_URL}\n')
                     if self.global_drive_settings:
                         drive_types = self.drive_types
-                        fp.write(f'##*# Multi drive type config enabled ##*#\n')
-                        fp.write(self.multi_drive_config_explanation + '\n\n')
+                        conf.write(f'##*# Multi drive type config enabled ##*#\n')
+                        conf.write(self.multi_drive_config_explanation + '\n\n')
                     else:
                         drive_types = ['__spinning']
-                    fp.write('\n\n')
+                    conf.write('\n\n')
                     for drive_type in drive_types:
-                        fp.write(f'\n##*# {drive_type} drives type ##*#\n')
+                        conf.write(f'\n##*# {drive_type} drives type ##*#\n')
                         for drive in self.drive_list[drive_type]:
                             line = drive
                             for arg in self.config_list[drive_type]:
                                 line += " " + arg
-                            fp.write(line + "\n")
+                            conf.write(line + "\n")
                 except ValueError as exc:
                     msg = 'Cannot write data in config file [{0}]: {1}'.format(self.smart_conf_file, exc)
                     logger.error(msg)
@@ -352,8 +353,8 @@ class Configuration:
 
     def write_alert_config_file(self):
         if os.path.isdir(os.path.dirname(self.alert_conf_file)):
-            with open(self.alert_conf_file, 'wb') as fp:
-                self.int_alert_config.write_encrypted(fp)
+            with open(self.alert_conf_file, 'wb') as conf:
+                self.int_alert_config.write_encrypted(conf)
         else:
             msg = f'Cannot write [{self.alert_conf_file}]. Directory maybe be missing.'
             logger.error(msg)
@@ -1090,8 +1091,8 @@ class MainGuiApp:
 
     def raw_smartd_view(self):
         if os.path.isfile(self.config.smart_conf_file):
-            with open(self.config.smart_conf_file) as fp:
-                smartd_text = fp.read()
+            with open(self.config.smart_conf_file) as conf:
+                smartd_text = conf.read()
 
             col = [[sg.Text(smartd_text, background_color='#FFFFFF')]]
 
@@ -1338,21 +1339,21 @@ def system_service_handler(service, action):
             if is_running:
                 logger.info(msg_already_running)
                 return True
-            else:
-                logger.info(msg_action)
-                try:
-                    # result = os.system('service ' + service + ' start > /dev/null 2>&1')
-                    result, output = command_runner(f'service "{service} start')
-                    if result == 0:
-                        logger.info(msg_success)
-                        return True
-                    logger.error(f'Could not start service, code [{result}].')
-                    logger.error(f'Output:\n{output}')
-                    raise Exception
-                except Exception:
-                    logger.info(msg_failure)
-                    logger.debug('Trace:', exc_info=True)
-                    raise Exception
+
+            logger.info(msg_action)
+            try:
+                # result = os.system('service ' + service + ' start > /dev/null 2>&1')
+                result, output = command_runner(f'service "{service} start')
+                if result == 0:
+                    logger.info(msg_success)
+                    return True
+                logger.error(f'Could not start service, code [{result}].')
+                logger.error(f'Output:\n{output}')
+                raise Exception
+            except Exception:
+                logger.info(msg_failure)
+                logger.debug('Trace:', exc_info=True)
+                raise Exception
 
         elif action == "stop":
             if not is_running:
