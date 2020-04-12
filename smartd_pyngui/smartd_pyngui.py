@@ -10,13 +10,13 @@ import sys
 import platform  # Detect OS
 import re  # Regex handling
 from time import sleep
-import subprocess  # system_service_handler
+import json
 from datetime import datetime
 import zlib
-import ofunctions
+from command_runner.elevate import elevate
 import ofunctions.Mailer
-from configparsercrypt.configparserfernet import ConfigParserCrypt
-import json
+from configparser_crypt.fernet_backend import ConfigParserCrypt
+from smartmontools_wrapper import smartctl_wrapper
 
 import PySimpleGUI.PySimpleGUI as sg
 
@@ -91,65 +91,11 @@ if IS_STABLE is False:
 #     logger.error('Failed to open file', exc_info=True)
 # You can also call logger.exception(msg, *args), it equals to logger.error(msg, exc_info=True, *args)
 
+
 logger = ofunctions.logger_get_logger(LOG_FILE, debug=_DEBUG)
 
 
 # ACTUAL APPLICATION ######################################################################################
-
-def get_disk_types():
-    # Assume that we will use smartctl in order to detect disk types instead of WMI
-    # use smartctl --scan-open to list drives
-
-    # Contains array of disks like [name, type] where type = ssd, spinning or nvme
-    disk_list = []
-
-    result, output = ofunctions.command_runner(f'"{"smartctl.exe"}" {"--scan-open --json"}')
-    if result != 0:
-        return None
-    else:
-        disks = json.loads(output)
-        for disk in disks['devices']:
-            # Before adding disks to disk list, we need to check whether the SMART attributes can be read
-            # This is specially usefull to filter raid member drives
-
-            result, output = ofunctions.command_runner(f'"{"smartctl.exe"}" {"--info --json"} {disk["name"]}',
-                                                       valid_exit_codes=[0, 1], timeout=60)
-            if result != 0:
-                # Don't add drives that can't be opened
-                continue
-            else:
-                # disk['type'] is already correct for nvme disks
-
-                disk_detail = json.loads(output)
-
-                try:
-                    # set dtype for nvme disks
-                    if disk['type'] == 'nvme':
-                        disk['disk_type'] = 'nvme'
-                    # Determnie if disk is spinning
-                    elif disk_detail['rotation_rate'] == 'Solid State Device':
-                        disk['disk_type'] = 'ssd'
-                    elif int(disk_detail['rotation_rate']) != 0:
-                        disk['disk_type'] = 'spinning'
-                    else:
-                        disk['disk_type'] = 'unknown'
-                except (TypeError, KeyError):
-                    disk['disk_type'] = 'unknown'
-                    logger.debug('Trace', exc_info=True)
-            disk_list.append(disk)
-        return disk_list
-
-
-def get_smart_info(disk_list):
-    general_output = ""
-
-    for disk in disk_list:
-        if disk['disk_type'] != 'unknown':
-            result, output = ofunctions.command_runner(f'"{"smartctl.exe"}" {"--all"} {disk["name"]}',
-                                                       valid_exit_codes=[0, 4], timeout=60)
-            if result != 0:
-                general_output = f'{general_output}\n\nDisk {disk["name"]}\n{output}'
-    return general_output
 
 
 class Configuration:
@@ -712,7 +658,7 @@ class MainGuiApp:
                 elif action == 'Exit':
                     break
             elif event == 'Show disk detection':
-                sg.Popup('%s%s' % (self.disk_types, json.dumps(get_disk_types(), indent=4)))
+                sg.Popup('%s%s' % (self.disk_types, json.dumps(smartctl_wrapper.get_disks(), indent=4)))
             elif event == 'Reload smartd service':
                 self.service_reload()
             elif event == 'Save changes':
@@ -759,7 +705,7 @@ class MainGuiApp:
                     self.window.Element('nvme_tab').Update(disabled=False)
                     self.window.Element('removable_tab').Update(disabled=False)
             elif event == 'Autodetect drives per type':
-                drive_list = get_disk_types()
+                drive_list = smartctl_wrapper.get_disks()
                 # Empty earlier drives
                 for drive_type in self.config.drive_types:
                     self.window.Element('drive_list_widget' + drive_type).Update('')
@@ -1510,8 +1456,12 @@ def trigger_alert(config, mode=None):
 
         # Try to run smartctl diag for all disks
         try:
-            smartd_output = get_smart_info(get_disk_types())
-            attachment = zlib.compress(smartd_output.encode('utf-8'))
+            smartctl_output = ''
+            disks = smartctl_wrapper.get_disks()
+            for disk in disks:
+                if disk['type'] != 'unknown':
+                    smartctl_output = smartctl_output + smartctl_wrapper.get_smart_info(disk['name'])
+            attachment = zlib.compress(smartctl_output.encode('utf-8'))
         except Exception:
             logger.error('Cannot get smartctl output.')
             logger.debug('Trace', exc_info=True)
@@ -1608,138 +1558,4 @@ def main(argv):
 
 # Improved answer I have done in https://stackoverflow.com/a/49759083/2635443
 if __name__ == '__main__':
-    if ofunctions.is_admin() is True:
-        main(sys.argv)
-    else:
-        # UAC elevation / sudo code working for CPython, Nuitka >= 0.6.2, PyInstaller, PyExe, CxFreeze
-
-        # Regardless of the runner (CPython, Nuitka or frozen CPython), sys.argv[0] is the relative path to script,
-        # sys.argv[1] are the arguments
-        # The only exception being CPython on Windows where sys.argv[0] contains absolute path to script
-        # Regarless of OS, sys.executable will contain full path to python binary for CPython and Nuitka,
-        # and full path to frozen executable on frozen CPython
-
-        # Recapitulative table create with
-        # (CentOS 7x64 / Python 3.4 / Nuitka 0.6.1 / PyInstaller 3.4) and
-        # (Windows 10 x64 / Python 3.7x32 / Nuitka 0.6.2.10 / PyInstaller 3.4)
-        # --------------------------------------------------------------------------------------------------------------
-        # | OS  | Variable       | CPython                       | Nuitka               | PyInstaller                  |
-        # |------------------------------------------------------------------------------------------------------------|
-        # | Lin | argv           | ['./script.py', '-h']         | ['./test', '-h']     | ['./test.py', -h']           |
-        # | Lin | sys.executable | /usr/bin/python3.4            | /usr/bin/python3.4   | /absolute/path/to/test       |
-        # | Win | argv           | ['C:\\Python\\test.py', '-h'] | ['test', '-h']       | ['test', '-h']               |
-        # | Win | sys.executable | C:\Python\python.exe          | C:\Python\Python.exe | C:\absolute\path\to\test.exe |
-        # --------------------------------------------------------------------------------------------------------------
-
-        # Nuitka 0.6.2 and newer define builtin __nuitka_binary_dir
-        # Nuitka does not set the frozen attribute on sys
-        # Nuitka < 0.6.2 can be detected in sloppy ways, ie if not sys.argv[0].endswith('.py') or len(sys.path) < 3
-        # Let's assume this will only be compiled with newer nuitka, and remove sloppy detections
-        try:
-            # Actual if statement not needed, but keeps code inspectors more happy
-            # This only exists when built with nuitka
-            # noinspection PyUnresolvedReferences
-            if __nuitka_binary_dir is not None:
-                is_nuitka_compiled = True
-            else:
-                is_nuitka_compiled = False
-        except NameError:
-            is_nuitka_compiled = False
-
-        if is_nuitka_compiled:
-            # On nuitka, sys.executable is the python binary, even if it does not exist in standalone,
-            # so we need to fill runner with sys.argv[0] absolute path
-            runner = os.path.abspath(sys.argv[0])
-            arguments = sys.argv[1:]
-            # current_dir = os.path.dirname(runner)
-
-            logger.debug(f'Running elevator as Nuitka with runner [{runner}].')
-            logger.debug(f'Arguments are [{arguments}].')
-
-        # If a freezer is used (PyInstaller, cx_freeze, py2exe)
-        elif getattr(sys, "frozen", False):
-            runner = os.path.abspath(sys.executable)
-            arguments = sys.argv[1:]
-            # current_dir = os.path.dirname(runner)
-
-            logger.debug(f'Running elevator as Frozen with runner [{runner}].')
-            logger.debug(f'Arguments are [{arguments}].')
-
-        # If standard interpreter CPython is used
-        else:
-            runner = os.path.abspath(sys.executable)
-            arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:]
-            # current_dir = os.path.abspath(sys.argv[0])
-
-            logger.debug(f'Running elevator as CPython with runner [{runner}].')
-            logger.debug(f'Arguments are [{arguments}].')
-
-        if os.name == 'nt':
-            # Re-run the program with admin rights
-            # Join arguments and double quote each argument in order to prevent space separation
-            arguments = ' '.join('"' + arg + '"' for arg in arguments)
-            try:
-                # Old method using ctypes which does not wait for executable to exit nor deos get exit code
-                # See https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shellexecutew
-                # int 0 means SH_HIDE window, 1 is SW_SHOWNORMAL
-                # needs the following imports
-                # import ctypes
-
-                # ctypes.windll.shell32.ShellExecuteW(None, 'runas', runner, arguments, None, 0)
-
-                # Metthod with exit code that waits for executable to exit, needs the following imports
-                # import ctypes  # In order to perform UAC check
-                # import win32event  # monitor process
-                # import win32process  # monitor process
-                # from win32com.shell.shell import ShellExecuteEx
-                # from win32com.shell import shellcon
-
-                childProcess = ShellExecuteEx(nShow=0, fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                              lpVerb='runas', lpFile=runner, lpParameters=arguments)
-                procHandle = childProcess['hProcess']
-                obj = win32event.WaitForSingleObject(procHandle, -1)
-                exit_code = win32process.GetExitCodeProcess(procHandle)
-                logger.debug('Child exited with code: %s' % exit_code)
-                sys.exit(exit_code)
-
-            except Exception as e:
-                logger.info(e)
-                logger.debug('Trace', exc_info=True)
-                sys.exit(255)
-        # Linux runner and hopefully Unixes
-        else:
-            # Search for sudo executable in order to avoid using shell=True with subprocess
-            sudo_path = None
-            for path in os.environ.get('PATH', ''):
-                if os.path.isfile(os.path.join(path, 'sudo')):
-                    sudo_path = os.path.join(path, 'sudo')
-            if sudo_path is None:
-                logger.error('Cannot find sudo executable. Cannot elevate privileges. Trying to run wihtout.')
-                main(sys.argv)
-            else:
-                command = 'sudo "%s"%s%s' % (
-                    runner,
-                    (' ' if len(arguments) > 0 else ''),
-                    ' '.join('"%s"' % argument for argument in arguments)
-                )
-                # TODO : test new command generation
-                # command = 'sudo ' + runner + (' ' if len(arguments) > 0 else '') + \
-                #          ' '.join('"' + argument + '"' for argument in arguments)
-                try:
-                    # TODO command to command_runner ?
-                    # Don't specify timeout=X since we don't wan't the program to finish at any moment
-                    output = subprocess.check_output(command, stderr=subprocess.STDOUT,
-                                                     shell=False, universal_newlines=False)
-                    output = output.decode('unicode_escape', errors='ignore')
-
-                    logger.info(f'Child output: [{output}].')
-                    sys.exit(0)
-                except subprocess.CalledProcessError as exc:
-                    exit_code = exc.returncode
-                    logger.error(f'Child exited with code: [{exit_code}].')
-                    try:
-                        output = exc.output.decode('unicode_escape', errors='ignore')
-                        logger.error(f'Child output: [{output}].')
-                    except Exception as exc:
-                        logger.debug(exc, exc_info=True)
-                    sys.exit(exit_code)
+    elevate(main, sys.argv)
