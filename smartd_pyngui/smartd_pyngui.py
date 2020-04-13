@@ -10,7 +10,6 @@ import sys
 import platform
 import re
 import json
-from datetime import datetime
 from command_runner.elevate import elevate
 from command_runner import command_runner
 import ofunctions
