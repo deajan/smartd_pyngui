@@ -9,25 +9,21 @@ import os
 import sys
 import platform
 import re
-from time import sleep
 import json
 from datetime import datetime
-import zlib
 from command_runner.elevate import elevate
 from command_runner import command_runner
-import ofunctions.Mailer
+import ofunctions
+from ofunctions.mailer import send_email
 from configparser_crypt.fernet_backend import ConfigParserCrypt
 from smartmontools_wrapper import smartctl_wrapper
+from ofunctions.service_control import system_service_handler
 
 import PySimpleGUI.PySimpleGUI as sg
 from icon import ICON_FILE, TOOLTIP_IMAGE
 
 from PRIVATE.aes_key import AES_ENCRYPTION_KEY
 
-
-# Module pywin32
-if os.name == 'nt':
-    import win32serviceutil
 
 # On Windows nuitka distribs, set the tkinter library path below the distribution
 if sys.argv[0].endswith(".exe") or sys.argv[0].endswith(".EXE"):
@@ -1083,7 +1079,7 @@ class MainGuiApp:
         try:
             system_service_handler(SMARTD_SERVICE_NAME, "restart")
         except Exception as exc:
-            msg = 'Cannot restart [" + SMARTD_SERVICE_NAME + "]. Running as admin ? {0}'.format(exc)
+            msg = 'Cannot restart [{0}]. Running as admin ? {1}'.format(SMARTD_SERVICE_NAME, exc)
             logger.error(msg)
             logger.debug('Trace', exc_info=True)
             sg.PopupError(msg)
@@ -1255,137 +1251,6 @@ class MainGuiApp:
                 self.config.int_alert_config['ALERT'][key] = value
 
 
-def system_service_handler(service, action):
-    """Handle Windows / Unix services
-    Valid actions are start, stop, restart, status
-    Returns True if action succeeded or service is running, False if service does not run
-    """
-
-    loops = 0  # Number of seconds elapsed since we started Windows service
-    max_wait = 6  # Number of seconds we'll wait for Windows service to start
-
-    msg_already_running = f'Service [{service}] already running.'
-    msg_not_running = f'Service [{service}] is not running.'
-    msg_action = f'Action {action} for service [{service}].'
-    msg_success = f'Action {action} succeeded.'
-    msg_failure = f'Action {action} failed.'
-    msg_too_long = f'Action {action} took more than {max_wait} seconds and seems to have failed.'
-
-    def nt_service_status(service):
-        # Returns list. If second entry = 4, service is running
-        # TODO: handle other service states than 4
-        service_status = win32serviceutil.QueryServiceStatus(service)
-        if service_status[1] == 4:
-            return True
-        return False
-
-    if os.name == 'nt':
-        is_running = nt_service_status(service)
-
-        if action == "start":
-            if is_running:
-                logger.info(msg_already_running)
-                return True
-            logger.info(msg_action)
-            try:
-                # Does not provide return code, so we need to check manually
-                win32serviceutil.StartService(service)
-                while not is_running and loops < max_wait:
-                    is_running = nt_service_status(service)
-                    if is_running:
-                        logger.info(msg_success)
-                        return True
-                    else:
-                        sleep(2)
-                        loops += 2
-                logger.error(msg_too_long)
-                raise Exception
-            except Exception:
-                logger.error(msg_failure)
-                logger.debug('Trace', exc_info=True)
-                raise Exception
-
-        elif action == "stop":
-            if not is_running:
-                logger.info(msg_not_running)
-                return True
-            logger.info(msg_action)
-            try:
-                win32serviceutil.StopService(service)
-                logger.info(msg_success)
-                return True
-            except Exception:
-                logger.error(msg_failure)
-                logger.debug('Trace:', exc_info=True)
-                raise Exception
-
-        elif action == "restart":
-            system_service_handler(service, 'stop')
-            sleep(1)  # arbitrary sleep between
-            system_service_handler(service, 'start')
-
-        elif action == "status":
-            return is_running
-
-    else:
-        # Using lsb service X command on Unix variants, hopefully the most portable
-
-        # service_status = os.system("service " + service + " status > /dev/null 2>&1")
-
-        # Valid exit code are 0 and 3 (because of systemctl using a service redirect)
-        service_status, _ = command_runner(f'service "{service}" status')
-        if service_status == 0:
-            is_running = True
-        else:
-            is_running = False
-
-        if action == "start":
-            if is_running:
-                logger.info(msg_already_running)
-                return True
-
-            logger.info(msg_action)
-            try:
-                # result = os.system('service ' + service + ' start > /dev/null 2>&1')
-                result, output = command_runner(f'service "{service} start')
-                if result == 0:
-                    logger.info(msg_success)
-                    return True
-                logger.error(f'Could not start service, code [{result}].')
-                logger.error(f'Output:\n{output}')
-                raise Exception
-            except Exception:
-                logger.info(msg_failure)
-                logger.debug('Trace:', exc_info=True)
-                raise Exception
-
-        elif action == "stop":
-            if not is_running:
-                logger.info(msg_not_running)
-            else:
-                logger.info(msg_action)
-                try:
-                    # result = os.system('service ' + service + ' stop > /dev/null 2>&1')
-                    result, output = command_runner(f'service "{service}" stop')
-                    if result == 0:
-                        logger.info(msg_success)
-                        return True
-                    logger.error(f'Could not start service, code [{result}].')
-                    logger.error(f'Output:\n{output}')
-                    raise Exception
-                except Exception:
-                    logger.error(msg_failure)
-                    logger.debug('Trace:', exc_info=True)
-                    raise Exception
-
-        elif action == "restart":
-            system_service_handler(service, 'stop')
-            system_service_handler(service, 'start')
-
-        elif action == "status":
-            return is_running
-
-
 def trigger_alert(config, mode=None):
     src = None
     dst = None
@@ -1452,7 +1317,7 @@ def trigger_alert(config, mode=None):
 
         if len(src) > 0 and len(dst) > 0 and len(smtp_server) > 0 and len(smtp_port) > 0:
             try:
-                ret = ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server,
+                ret = send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server,
                                                    smtp_port=smtp_port,
                                                    smtp_user=smtp_user, smtp_password=smtp_password, security=security,
                                                    subject=subject, priority=True,
