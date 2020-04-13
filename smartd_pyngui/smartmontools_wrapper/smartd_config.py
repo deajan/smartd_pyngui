@@ -1,3 +1,26 @@
+#! /usr/bin/env python
+#  -*- coding: utf-8 -*-
+#
+# This file is part of ofunctions module
+
+"""
+servce_control allows to interact with windows / unix services
+
+Versionning semantics:
+    Major version: backward compatibility breaking changes
+    Minor version: New functionnality
+    Patch version: Backwards compatible bug fixes
+
+"""
+
+__intname__ = 'smartd_pyngui.smartd_config'
+__author__ = 'Orsiris de Jong'
+__copyright__ = 'Copyright (C) 2012-2020 Orsiris de Jong'
+__licence__ = 'BSD 3 Clause'
+__version__ = '1.0.0'
+__build__ = '2020041302'
+
+
 import os
 import sys
 from datetime import datetime
@@ -6,8 +29,8 @@ from logging import getLogger
 SMARTD_CONF_FILENAME = 'smartd.conf'
 DEFAULT_UNIX_PATH = '/etc/smartd'
 
-
 logger = getLogger()
+
 
 class SmartDConfiguration:
     """
@@ -24,17 +47,12 @@ class SmartDConfiguration:
     """
     smart_conf_file = ""
 
-    def __init__(self, file_path=None):
+    def __init__(self, file_path=None, app_root=None, app_executable=None):
         # TODO investigate file_path usage here (which refers to both smartd and alert conf files)
-        """Determine smartd configuration file path"""
 
-        # __file__ variable doesn't exist in frozen py2exe mode, get app_root
-        try:
-            self.app_executable = os.path.abspath(__file__)
-            self.app_root = os.path.dirname(self.app_executable)
-        except OSError:
-            self.app_executable = os.path.abspath(sys.argv[0])
-            self.app_root = os.path.dirname(self.app_executable)
+        self.app_root = app_root
+        self.app_executable = app_executable
+
 
         ##*# Multi drive type config enabled ##*#
         self.multi_drive_config_explanation = '# Since smartd cannot set different settings per drive type, ' \
