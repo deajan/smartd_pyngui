@@ -18,8 +18,8 @@ __intname__ = 'smartd_pyngui.smartctl_wrapper'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2014-2020 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '2.1.0'
-__build__ = '2020041201'
+__version__ = '2.1.1'
+__build__ = '2020041301'
 
 import json
 from logging import getLogger
@@ -109,6 +109,8 @@ def get_smart_state(disk_index):
             smartstate = None  # Command line dit not parse
         elif exitcode >> 1 & 1:
             smartstate = None  # Device open failed
+        elif exitcode >> 2 & 1:
+            smartstate = True # Some smart commands failed (typically happens on RAID members)
         elif exitcode >> 3 & 1:
             smartstate = False  # DISK FAILING
         elif exitcode >> 4 & 1:
@@ -134,9 +136,10 @@ def get_smart_info(disk_name, json_output=False):
     :return: (str) smartctl standard output
     """
     result, output = command_runner('"smartctl" --all {0} {1}'.format('--json' if json_output else '', disk_name))
-    if result == 0:
-        return output
-    return None
+    # If commandline didn't parse or device cannot be opened
+    if result >> 0 & 1 and result >> 1 & 1:
+        return None
+    return output
 
 
 def _selftest():
