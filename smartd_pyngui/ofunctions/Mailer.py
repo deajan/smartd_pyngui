@@ -17,8 +17,8 @@ __intname__ = 'ofunctions.mailer'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2014-2020 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '0.2.2'
-__build__ = '2020041202'
+__version__ = '0.3.2'
+__build__ = '2020041302'
 
 
 import os
@@ -151,35 +151,29 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
                     if smtp_user is not None and smtp_password is not None:
                         remote_server.login(smtp_user, smtp_password)
                     remote_server.sendmail(source_mail, destination_mails, text)
-        except ConnectionRefusedError as exc:
-            return exc
-        except ConnectionAbortedError as exc:
-            return exc
-        except ConnectionResetError as exc:
-            return exc
-        except ConnectionError as exc:
-            return exc
-        except socket.gaierror as exc:
-            return exc
-        except smtplib.SMTPNotSupportedError as exc:
-            # Server does not support STARTTLS
-            return exc
-        except ssl.SSLError as exc:
-            return exc
-        except smtplib.SMTPAuthenticationError as exc:
+        # SMTPNotSupportedError = Server does not support STARTTLS
+        except (smtplib.SMTPAuthenticationError, smtplib.SMTPSenderRefused, smtplib.SMTPRecipientsRefused,
+                smtplib.SMTPDataError, ConnectionRefusedError, ConnectionAbortedError, ConnectionResetError,
+                ConnectionError, socket.gaierror, smtplib.SMTPNotSupportedError, ssl.SSLError) as exc:
             return exc
 
     if not isinstance(destination_mails, list):
         # Make sure destination mails is a list
         destination_mails = re.split(r',|;| ', destination_mails)
 
+    rfc822_addresses = [mail for mail in destination_mails if is_mail_address(mail)]
+    non_rfc822_addresses = [mail for mail in destination_mails if mail not in rfc822_addresses]
+
     if not split_mails:
-        for destination_mail in destination_mails:
+        for destination_mail in rfc822_addresses:
             _send_email(destination_mail)
     else:
-        _send_email(','.join(destination_mails))
+        _send_email(','.join(rfc822_addresses))
 
-    return True
+    if non_rfc822_addresses == []:
+        return True
+
+    return 'Refused non RFC 822 mails: {0}'.format(non_rfc822_addresses)
 
 
 def is_mail_address(string):
