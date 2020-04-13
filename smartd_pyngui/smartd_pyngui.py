@@ -1404,7 +1404,7 @@ def trigger_alert(config, mode=None):
     smartd_info['nextdays'] = os.environ.get('SMARTD_NEXTDAYS', 'Unknown')
 
     if mode == 'test':
-        subject = 'Smartmontools-win email test'
+        subject = 'Smartmontools-win alert mail send test'
         warning_message = "Smartmontools-win Alert Test"
     elif mode == 'installmail':
         subject = 'Smartmontools-win installation test'
@@ -1441,28 +1441,22 @@ def trigger_alert(config, mode=None):
             security = None
 
         # Try to run smartctl diag for all disks
-        try:
-            smartctl_output = ''
-            disks = smartctl_wrapper.get_disks()
-            for disk in disks:
-                if disk['type'] != 'unknown':
-                    disk_smart_state = smartctl_wrapper.get_smart_info(disk['name'])
-                    if disk_smart_state:
-                        smartctl_output = smartctl_output + disk_smart_state
-            attachment = zlib.compress(smartctl_output.encode('utf-8'))
-        except Exception:
-            logger.error('Cannot get smartctl output.')
-            logger.debug('Trace', exc_info=True)
-            attachment = None
+        smartctl_output = ''
+        disks = smartctl_wrapper.get_disks()
+        for disk in disks:
+            if disk['type'] != 'unknown':
+                disk_smart_state = smartctl_wrapper.get_smart_info(disk['name'])
+                if disk_smart_state:
+                    smartctl_output = smartctl_output + disk_smart_state
+        warning_message = warning_message + '\n\nSmart reports for all found disks:\n\n' + smartctl_output
 
         if len(src) > 0 and len(dst) > 0 and len(smtp_server) > 0 and len(smtp_port) > 0:
             try:
                 ret = ofunctions.Mailer.send_email(source_mail=src, destination_mails=dst, smtp_server=smtp_server,
                                                    smtp_port=smtp_port,
                                                    smtp_user=smtp_user, smtp_password=smtp_password, security=security,
-                                                   subject=subject, attachment=attachment,
-                                                   filename='smartctl_output.zip', priority=True,
-                                                   body=warning_message, debug=True)  # TODO remove debug True
+                                                   subject=subject, priority=True,
+                                                   body=warning_message)
                 # WIP
                 logger.info(f'Mailer result [{ret}].')
 
