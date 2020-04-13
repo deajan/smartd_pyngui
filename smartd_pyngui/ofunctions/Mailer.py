@@ -47,8 +47,8 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
     :param security:
     :param subject:
     :param body:
-    :param attachment:
-    :param filename: If filename is given, we suppose attachment is inline binary data
+    :param attachment: (str/bytes): Path to file, or inline binary data
+    :param filename: (str):  filename in case we use inline binary data
     :param html_enabled:
     :param bcc_mails:
     :param priority: (bool) set to true to add a high priority flag
@@ -92,7 +92,7 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
                 message.attach(MIMEText(body, "plain"))
 
         if attachment is not None:
-            if filename is not None:
+            if isinstance(attachment, bytes):
                 # Let's suppose we directly attach binary data
                 payload = attachment
             else:
