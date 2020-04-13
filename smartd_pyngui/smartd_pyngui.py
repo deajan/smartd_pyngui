@@ -89,17 +89,9 @@ logger = ofunctions.logger_get_logger(LOG_FILE, debug=DEBUGGING)
 
 
 class AlertConfiguration:
-    def __init__(self):
+    def __init__(self, app_root=None):
         self.alert_conf_file = None
-
-        # __file__ variable doesn't exist in frozen py2exe mode, get app_root
-        try:
-            self.app_executable = os.path.abspath(__file__)
-            self.app_root = os.path.dirname(self.app_executable)
-        except OSError:
-            self.app_executable = os.path.abspath(sys.argv[0])
-            self.app_root = os.path.dirname(self.app_executable)
-
+        self.app_root = app_root
 
         # Contains smartd_pyngui alert settings
         self.int_alert_config = ConfigParserCrypt()
@@ -180,6 +172,7 @@ class AlertConfiguration:
             msg = f'Cannot read alert config file [{conf_file}].'
             logger.error(msg)
             raise ValueError(msg)
+
 
 class MainGuiApp:
     def __init__(self, smart_config, alert_config):
@@ -1180,8 +1173,15 @@ def main(argv):
     sg.ChangeLookAndFeel('Material2')
     sg.SetOptions(element_padding=(0, 0), font=('Helvetica', 9), margins=(2, 1), icon=ICON_FILE)
 
-    smart_config = SmartDConfiguration()
-    alert_config = AlertConfiguration()
+    # __file__ variable doesn't exist in frozen py2exe mode, get app_root
+    try:
+        app_executable = os.path.abspath(__file__)
+    except OSError:
+        app_executable = os.path.abspath(argv[0])
+    app_root = os.path.dirname(app_executable)
+
+    smart_config = SmartDConfiguration(app_root=app_root, app_executable=app_executable)
+    alert_config = AlertConfiguration(app_root=app_root)
 
     try:
         smart_config.read_smartd_conf_file()
