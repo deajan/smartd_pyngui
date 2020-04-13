@@ -17,6 +17,7 @@ import ofunctions
 from ofunctions.mailer import send_email
 from configparser_crypt.fernet_backend import ConfigParserCrypt
 from smartmontools_wrapper import smartctl_wrapper
+from smartmontools_wrapper.smartd_config import SmartDConfiguration
 from ofunctions.service_control import system_service_handler
 
 import PySimpleGUI.PySimpleGUI as sg
@@ -44,13 +45,13 @@ AUTHOR = 'Orsiris de Jong'
 LOG_FILE = APP_NAME + '.log'
 
 SMARTD_SERVICE_NAME = 'smartd'
-SMARTD_CONF_FILENAME = 'smartd.conf'
 ALERT_CONF_FILENAME = APP_NAME + '_alerts.conf'
 
-DEFAULT_UNIX_PATH = '/etc/smartd'
+
 
 IS_STABLE = False
 
+DEFAULT_UNIX_PATH = False # TOOD
 
 # DEV NOTES ###############################################################################################
 
@@ -87,24 +88,9 @@ logger = ofunctions.logger_get_logger(LOG_FILE, debug=DEBUGGING)
 # ACTUAL APPLICATION ######################################################################################
 
 
-class Configuration:
-    """
-    This class can read / write smartd.conf files
-
-    Standard smartd.conf files are read into 'default' section
-    If the file has been written by this class, it will have
-
-    - A header: '# smartd_pyngui 1.0 conf file'
-    - a Disk type list: '# __spinning /dev/sda /dev/sdb\n# __nvme /dev/sdc\n __ssd /dev/sdd
-    - Various sections of configuration settings per disk type (eg /dev/sdX [config])
-    - If no disk type list exists, than the __spinning type will be used
-
-    """
-    smart_conf_file = ""
-
-    def __init__(self, file_path=None):
-        # TODO investigate file_path usage here (which refers to both smartd and alert conf files)
-        """Determine smartd configuration file path"""
+class AlertConfiguration:
+    def __init__(self):
+        self.alert_conf_file = None
 
         # __file__ variable doesn't exist in frozen py2exe mode, get app_root
         try:
@@ -114,144 +100,52 @@ class Configuration:
             self.app_executable = os.path.abspath(sys.argv[0])
             self.app_root = os.path.dirname(self.app_executable)
 
-        ##*# Multi drive type config enabled ##*#
-        self.multi_drive_config_explanation = '# Since smartd cannot set different settings per drive type, ' \
-                                              'we analyzed the drives on your computer and assigned settings ' \
-                                              'corresponding to the drive types. When drives change, a re-run ' \
-                                              'of the tool is required.'
-        self.smart_conf_file = None
-        self.alert_conf_file = None
-
-        # Use __spinning drive settings for all drive types
-        self.global_drive_settings = False
-
-        # Drive types
-        # Default gets populated when no other configs exist
-        self.drive_types = ['__spinning', '__ssd', '__nvme', '__removable']
-
-        # Contains smartd drive configurations
-        self.config_list = {}
-        # Contains lists of drives per drive_types
-        self.drive_list = {}
-        for drive_type in self.drive_types:
-            self.config_list[drive_type] = []
-            self.drive_list[drive_type] = []
-
-        # Contains smartd global alert configuration
-        self.config_list_alerts = []
 
         # Contains smartd_pyngui alert settings
         self.int_alert_config = ConfigParserCrypt()
         self.int_alert_config.set_key(ofunctions.revac(AES_ENCRYPTION_KEY))
 
-        self.set_smartd_defaults()
         self.set_alert_defaults()
 
-        if file_path is not None:
-            self.smart_conf_file = file_path
-            if not os.path.isfile(self.smart_conf_file):
-                logger.info("Using new file [" + self.smart_conf_file + "].")
+        if os.name == 'nt':
+            # Get program files environment
+            try:
+                program_files_x86 = os.environ["ProgramFiles(x86)"]
+            except KeyError:
+                program_files_x86 = os.environ["ProgramFiles"]
+
+            try:
+                program_files_x64 = os.environ["ProgramW6432"]
+            except KeyError:
+                program_files_x64 = os.environ["ProgramFiles"]
+
+            alert_conf_file_possible_paths = [
+                os.path.join(self.app_root, ALERT_CONF_FILENAME),
+                os.path.join(program_files_x64, 'smartmontools for Windows', 'bin', ALERT_CONF_FILENAME),
+                os.path.join(program_files_x86, 'smartmontools for Windows', 'bin', ALERT_CONF_FILENAME),
+                os.path.join(program_files_x64, 'smartmontools', 'bin', ALERT_CONF_FILENAME),
+                os.path.join(program_files_x86, 'smartmontools', 'bin', ALERT_CONF_FILENAME)
+            ]
         else:
-            if platform.system() == "Windows":
-                # Get program files environment
-                try:
-                    program_files_x86 = os.environ["ProgramFiles(x86)"]
-                except KeyError:
-                    program_files_x86 = os.environ["ProgramFiles"]
+            alert_conf_file_possible_paths = [
+                os.path.join(self.app_root, ALERT_CONF_FILENAME),
+                os.path.join('/etc/smartmontools', ALERT_CONF_FILENAME),
+                os.path.join('/etc/smartd', ALERT_CONF_FILENAME),
+                os.path.join('/etc', ALERT_CONF_FILENAME),
+                os.path.join('etc/smartmontools', ALERT_CONF_FILENAME),
+                os.path.join('etc/smartd', ALERT_CONF_FILENAME),
+                os.path.join('/etc', ALERT_CONF_FILENAME)
+            ]
 
-                try:
-                    program_files_x64 = os.environ["ProgramW6432"]
-                except KeyError:
-                    program_files_x64 = os.environ["ProgramFiles"]
-
-                smart_conf_file_possible_paths = [
-                    os.path.join(self.app_root, SMARTD_CONF_FILENAME),
-                    os.path.join(program_files_x64, 'smartmontools for Windows', 'bin', SMARTD_CONF_FILENAME),
-                    os.path.join(program_files_x86, 'smartmontools for Windows', 'bin', SMARTD_CONF_FILENAME),
-                    os.path.join(program_files_x64, 'smartmontools', 'bin', SMARTD_CONF_FILENAME),
-                    os.path.join(program_files_x86, 'smartmontools', 'bin', SMARTD_CONF_FILENAME)
-                ]
-
-                alert_conf_file_possible_paths = [
-                    os.path.join(self.app_root, ALERT_CONF_FILENAME),
-                    os.path.join(program_files_x64, 'smartmontools for Windows', 'bin', ALERT_CONF_FILENAME),
-                    os.path.join(program_files_x86, 'smartmontools for Windows', 'bin', ALERT_CONF_FILENAME),
-                    os.path.join(program_files_x64, 'smartmontools', 'bin', ALERT_CONF_FILENAME),
-                    os.path.join(program_files_x86, 'smartmontools', 'bin', ALERT_CONF_FILENAME)
-                ]
-
-                for possible_smartd_path in smart_conf_file_possible_paths:
-                    if os.path.isfile(possible_smartd_path):
-                        self.smart_conf_file = possible_smartd_path
-                        break
-
-                for possible_alert_path in alert_conf_file_possible_paths:
-                    if os.path.isfile(possible_alert_path):
-                        self.alert_conf_file = possible_alert_path
-                        break
-
-            else:
-                smart_conf_file_possible_paths = [
-                    os.path.join(self.app_root, SMARTD_CONF_FILENAME),
-                    os.path.join('/etc/smartmontools', SMARTD_CONF_FILENAME),
-                    os.path.join('/etc/smartd', SMARTD_CONF_FILENAME),
-                    os.path.join('/etc', SMARTD_CONF_FILENAME),
-                    os.path.join('etc/smartmontools', SMARTD_CONF_FILENAME),
-                    os.path.join('etc/smartd', SMARTD_CONF_FILENAME),
-                    os.path.join('/etc', SMARTD_CONF_FILENAME)
-                ]
-
-                alert_conf_file_possible_paths = [
-                    os.path.join(self.app_root, ALERT_CONF_FILENAME),
-                    os.path.join('/etc/smartmontools', ALERT_CONF_FILENAME),
-                    os.path.join('/etc/smartd', ALERT_CONF_FILENAME),
-                    os.path.join('/etc', ALERT_CONF_FILENAME),
-                    os.path.join('etc/smartmontools', ALERT_CONF_FILENAME),
-                    os.path.join('etc/smartd', ALERT_CONF_FILENAME),
-                    os.path.join('/etc', ALERT_CONF_FILENAME)
-                ]
-
-                for possible_smartd_path in smart_conf_file_possible_paths:
-                    if os.path.isfile(possible_smartd_path):
-                        self.smart_conf_file = possible_smartd_path
-                        break
-
-                for possible_alert_path in alert_conf_file_possible_paths:
-                    if os.path.isfile(possible_alert_path):
-                        self.alert_conf_file = possible_alert_path
-                        break
-
-        if self.smart_conf_file is None:
-            self.smart_conf_file = os.path.join(self.app_root, SMARTD_CONF_FILENAME)
-        else:
-            logger.debug('Found configuration file in [%s].' % self.smart_conf_file)
+        for possible_alert_path in alert_conf_file_possible_paths:
+            if os.path.isfile(possible_alert_path):
+                self.alert_conf_file = possible_alert_path
+                break
 
         if self.alert_conf_file is None:
             self.alert_conf_file = os.path.join(self.app_root, ALERT_CONF_FILENAME)
         else:
             logger.debug('Found alert config file in [%s].' % self.alert_conf_file)
-
-    def set_smartd_defaults(self):
-        self.drive_list['__spinning'] = ['DEVICESCAN']
-        self.drive_list['__ssd'] = []
-        self.drive_list['__nvme'] = []
-        self.drive_list['__removable'] = []
-
-        self.config_list['__spinning'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
-                                          '-W 20,55,60', '-n sleep,7,q',
-                                          '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
-        self.config_list['__ssd'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
-                                     '-W 40,65,75', '-n sleep,7,q',
-                                     '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
-        self.config_list['__nvme'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
-                                      '-W 40,80,85', '-n sleep,7,q',
-                                      '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
-        self.config_list['__removable'] = ['-H', '-C 197+', '-l error', '-U 198+', '-l selftest', '-t', '-f', '-I 194',
-                                           '-W 20,55,60', '-n sleep,7,q',
-                                           '-s (L/../../4/13|S/../../0,1,2,3,4,5,6/10)']
-
-        # Default behavior is to for smartmontools to launch this app with --alert
-        self.config_list_alerts = ['-m <nomailer>', '-M exec "%s --alert"' % self.app_executable]
 
     def set_alert_defaults(self):
         self.int_alert_config.add_section('ALERT')
@@ -266,88 +160,6 @@ class Configuration:
         self.int_alert_config['ALERT']['SECURITY'] = 'none'
         self.int_alert_config['ALERT']['COMPRESS_LOGS'] = 'yes'
         self.int_alert_config['ALERT']['LOCAL_ALERT'] = 'no'
-
-    # TODO use 4 different config lists
-    def read_smartd_conf_file(self, conf_file=None):
-        current_drive_type = '__spinning'
-        # Contains smartd drive configurations
-        config_list = {}
-        # Contains lists of drives per drive_types
-        drive_list = {}
-        for drive_type in self.drive_types:
-            config_list[drive_type] = []
-            drive_list[drive_type] = []
-        if conf_file is None:
-            conf_file = self.smart_conf_file
-        try:
-            with open(conf_file, 'r') as conf:
-                for line in conf:
-                    if line[0] != "\n" and line[0] != "\r" and line[0] != " ":
-                        if line.startswith('##*# Multi drive type config enabled ##*#'):
-                            self.global_drive_settings = True
-                        elif line.startswith('##*# __spinning drives type ##*#'):
-                            current_drive_type = '__spinning'
-                        elif line.startswith('##*# __nvme drives type ##*#'):
-                            current_drive_type = '__nvme'
-                        elif line.startswith('##*# __ssd drives type ##*#'):
-                            current_drive_type = '__ssd'
-                        elif line.startswith('##*# __removable drives type ##*#'):
-                            current_drive_type = '__removable'
-                        elif not line[0] == "#":
-                            try:
-                                cfg = line.split(' -')
-                                cfg = [cfg[0]] + ['-' + item for item in cfg[1:]]
-                                #  Remove unnecessary blanks and newlines
-                                for i, _ in enumerate(cfg):
-                                    cfg[i] = cfg[i].strip()
-                                drive_list[current_drive_type].append(cfg[0])
-                                del cfg[0]
-                                config_list[current_drive_type] = cfg
-                            except Exception:
-                                msg = "Cannot read in config file [%s]." % conf_file
-                                logger.error(msg)
-                                logger.debug('Trace:', exc_info=True)
-                                raise ValueError(msg)
-                self.smart_conf_file = conf_file
-            self.drive_list = drive_list
-            self.config_list = config_list
-            sg.Popup('Read configuration succeed')
-        except IOError:
-            msg = 'Cannot read from config file [%s].' % conf_file
-            logger.error(msg)
-            logger.debug('Trace:', exc_info=True)
-            sg.Popup('Read configuration failed: {0}.'.format(msg))
-
-    def write_smartd_conf_file(self):
-        try:
-            with open(self.smart_conf_file, 'w') as conf:
-                try:
-                    conf.write(f'# This file was generated on {datetime.now():%d-%B-%Y %H:%m:%S} by '
-                             f'{APP_NAME} {APP_VERSION} - {APP_URL}\n')
-                    if self.global_drive_settings:
-                        drive_types = self.drive_types
-                        conf.write(f'##*# Multi drive type config enabled ##*#\n')
-                        conf.write(self.multi_drive_config_explanation + '\n\n')
-                    else:
-                        drive_types = ['__spinning']
-                    conf.write('\n\n')
-                    for drive_type in drive_types:
-                        conf.write(f'\n##*# {drive_type} drives type ##*#\n')
-                        for drive in self.drive_list[drive_type]:
-                            line = drive
-                            for arg in self.config_list[drive_type]:
-                                line += " " + arg
-                            conf.write(line + "\n")
-                except ValueError as exc:
-                    msg = 'Cannot write data in config file [{0}]: {1}'.format(self.smart_conf_file, exc)
-                    logger.error(msg)
-                    logger.debug('Trace', exc_info=True)
-                    raise ValueError(msg)
-        except Exception as exc:
-            msg = 'Cannot write to config file [{0}]: {1}'.format(self.smart_conf_file, exc)
-            logger.error(msg)
-            logger.debug('Trace', exc_info=True)
-            raise ValueError(msg)
 
     def write_alert_config_file(self):
         if os.path.isdir(os.path.dirname(self.alert_conf_file)):
@@ -369,11 +181,11 @@ class Configuration:
             logger.error(msg)
             raise ValueError(msg)
 
-
 class MainGuiApp:
-    def __init__(self, config):
+    def __init__(self, smart_config, alert_config):
 
-        self.config = config
+        self.config = smart_config
+        self.alert_config = alert_config
 
         # Colors
         self.color_green_enabled = '#CCFFCC'
@@ -1204,21 +1016,21 @@ class MainGuiApp:
             if event == 'Save & trigger test alert':
                 try:
                     self.get_alert_gui_config(values)
-                    self.config.write_alert_config_file()
-                    trigger_alert(self.config, 'test')
+                    self.alert_config.write_alert_config_file()
+                    trigger_alert(self.alert_config, 'test')
                 except ValueError as msg:
                     sg.PopupError(msg)
             elif event == 'Save & go back':
                 try:
                     self.get_alert_gui_config(values)
-                    self.config.write_alert_config_file()
+                    self.alert_config.write_alert_config_file()
                     self.alert_window.Close()
                 except ValueError as msg:
                     sg.PopupError(msg)
                 break
             elif event == 'conf_file':
                 try:
-                    self.config.read_alert_config_file(values['conf_file'])
+                    self.alert_config.read_alert_config_file(values['conf_file'])
                     self.update_alert_gui_config()
                     current_conf_file = values['conf_file']
                 except ValueError as msg:
@@ -1226,8 +1038,8 @@ class MainGuiApp:
                     self.alert_window.Element('conf_file').Update(current_conf_file)
 
     def update_alert_gui_config(self):
-        for key in self.config.int_alert_config['ALERT']:
-            value = self.config.int_alert_config['ALERT'][key]
+        for key in self.alert_config.int_alert_config['ALERT']:
+            value = self.alert_config.int_alert_config['ALERT'][key]
             try:
                 if value == 'yes':
                     self.alert_window.Element(key).Update(True)
@@ -1248,10 +1060,10 @@ class MainGuiApp:
             elif value is False:
                 value = 'no'
             if key != 'Browse' and key != 'conf_file' and key != 'useSmtpAuth':
-                self.config.int_alert_config['ALERT'][key] = value
+                self.alert_config.int_alert_config['ALERT'][key] = value
 
 
-def trigger_alert(config, mode=None):
+def trigger_alert(alert_config, mode=None):
     src = None
     dst = None
     smtp_server = None
@@ -1277,31 +1089,31 @@ def trigger_alert(config, mode=None):
     else:
         subject = 'Smartmontools-win alert'
         try:
-            warning_message = config.int_alert_config['ALERT']['WARNING_MESSAGE']
+            warning_message = alert_config.int_alert_config['ALERT']['WARNING_MESSAGE']
         except KeyError:
             warning_message = 'Default warning message not set !'
 
     # TODO integrate smartd_info with warning message tidier
     warning_message = f'{warning_message}\n{smartd_info}'
 
-    if config.int_alert_config['ALERT']['MAIL_ALERT'] != 'no':
-        src = config.int_alert_config['ALERT']['SOURCE_MAIL']
-        dst = config.int_alert_config['ALERT']['DESTINATION_MAILS']
-        smtp_server = config.int_alert_config['ALERT']['SMTP_SERVER']
-        smtp_port = config.int_alert_config['ALERT']['SMTP_PORT']
+    if alert_config.int_alert_config['ALERT']['MAIL_ALERT'] != 'no':
+        src = alert_config.int_alert_config['ALERT']['SOURCE_MAIL']
+        dst = alert_config.int_alert_config['ALERT']['DESTINATION_MAILS']
+        smtp_server = alert_config.int_alert_config['ALERT']['SMTP_SERVER']
+        smtp_port = alert_config.int_alert_config['ALERT']['SMTP_PORT']
 
         try:
-            smtp_user = config.int_alert_config['ALERT']['SMTP_USER']
+            smtp_user = alert_config.int_alert_config['ALERT']['SMTP_USER']
         except KeyError:
             smtp_user = None
 
         try:
-            smtp_password = config.int_alert_config['ALERT']['SMTP_PASSWORD']
+            smtp_password = alert_config.int_alert_config['ALERT']['SMTP_PASSWORD']
         except KeyError:
             smtp_password = None
 
         try:
-            security = config.int_alert_config['ALERT']['SECURITY']
+            security = alert_config.int_alert_config['ALERT']['SECURITY']
         except KeyError:
             security = None
 
@@ -1336,7 +1148,7 @@ def trigger_alert(config, mode=None):
             logger.critical(f'src: {src}, dst: {dst}, smtp_server: {smtp_server}, smtp_port; {smtp_port}.')
             raise ValueError(msg)
 
-    if config.int_alert_config['ALERT']['LOCAL_ALERT'] != 'no':
+    if alert_config.int_alert_config['ALERT']['LOCAL_ALERT'] != 'no':
         if os.name == 'nt':
             # Make a popup appear on all sessions including console
             # TODO add CURRENT_DIR
@@ -1368,20 +1180,21 @@ def main(argv):
     sg.ChangeLookAndFeel('Material2')
     sg.SetOptions(element_padding=(0, 0), font=('Helvetica', 9), margins=(2, 1), icon=ICON_FILE)
 
-    config = Configuration()
+    smart_config = SmartDConfiguration()
+    alert_config = AlertConfiguration()
 
     try:
-        config.read_smartd_conf_file()
-        for drive_type in config.drive_types:
-            logger.debug(f'Drive list for {drive_type}:{config.drive_list[drive_type]}')
-            logger.debug(f'Config for {drive_type}:{config.config_list[drive_type]}')
+        smart_config.read_smartd_conf_file()
+        for drive_type in smart_config.drive_types:
+            logger.debug(f'Drive list for {drive_type}:{smart_config.drive_list[drive_type]}')
+            logger.debug(f'Config for {drive_type}:{smart_config.config_list[drive_type]}')
     except ValueError:
         msg = 'No smartd config file found, using default smartd configuration.'
         logger.info(msg)
         sg.Popup(msg)
 
     try:
-        config.read_alert_config_file()
+        alert_config.read_alert_config_file()
     except ValueError:
         msg = 'No alert config file found, using default alert configuration.'
         logger.info(msg)
@@ -1390,17 +1203,17 @@ def main(argv):
     try:
         if len(argv) > 1:
             if argv[1] == '--alert':
-                trigger_alert(config)
+                trigger_alert(alert_config)
             elif argv[1] == '--testalert':
-                trigger_alert(config, 'test')
+                trigger_alert(alert_config, 'test')
             elif argv[1] == '--installmail':
-                trigger_alert(config, 'install')
+                trigger_alert(alert_config, 'install')
     except ValueError as msg:
         logger.error(msg)
         sys.exit(1)
 
     try:
-        MainGuiApp(config)
+        MainGuiApp(smart_config, alert_config)
     except Exception:
         logger.critical("Cannot instanciate main app.")
         logger.debug('Trace:', exc_info=True)
