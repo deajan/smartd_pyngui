@@ -14,14 +14,14 @@ __intname__ = 'configparser_crypt.pycryptodomex_backend'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2016-2020 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '0.4.0'
-__build__ = '2020032701'
+__version__ = '0.4.1'
+__build__ = '2020062801'
 
 
 
 from configparser import ConfigParser
 import os
-
+from Cryptodome.Random import get_random_bytes
 import cryptidy.symmetric_encryption as symmetric_encryption
 
 
@@ -47,9 +47,9 @@ class ConfigParserCrypt(ConfigParser):
 
         # AES cypto key with added random bytes
         self.aes_key = None
-        self.random_header = symmetric_encryption.get_random_bytes(1337)
+        self.random_header = get_random_bytes(1337)
         self.null_bytes = ('\x12' * 8192).encode()
-        self.random_footer = symmetric_encryption.get_random_bytes(421)
+        self.random_footer = get_random_bytes(421)
 
     def set_key(self, aes_key):
         if len(aes_key) not in [16, 32]:
@@ -84,11 +84,9 @@ class ConfigParserCrypt(ConfigParser):
                     try:
 
                         if aes_key is not None:
-                            _, rawdata = symmetric_encryption.decrypt_message(fp.read(), aes_key, use_timestamp=False,
-                                                                              use_base64=False)
+                            _, rawdata = symmetric_encryption.decrypt_message(fp.read(), aes_key)
                         elif self.aes_key is not None:
-                            _, rawdata = symmetric_encryption.decrypt_message(fp.read(), self.aes_key,
-                                                                              use_timestamp=False, use_base64=False)
+                            _, rawdata = symmetric_encryption.decrypt_message(fp.read(), self.aes_key)
                         else:
                             raise ValueError('No aes key provided.')
                         aes_key = None
@@ -142,9 +140,9 @@ class ConfigParserCrypt(ConfigParser):
         try:
             data = self.random_header + self.to_write_data.encode('utf-8') + self.null_bytes + self.random_footer
             if aes_key is not None:
-                enc = symmetric_encryption.encrypt_message(data, aes_key, use_timestamp=False, use_base64=False)
+                enc = symmetric_encryption.encrypt_message(data, aes_key)
             elif self.aes_key is not None:
-                enc = symmetric_encryption.encrypt_message(data, self.aes_key, use_timestamp=False, use_base64=False)
+                enc = symmetric_encryption.encrypt_message(data, self.aes_key)
             else:
                 raise ('No AES key provided.')
             aes_key = None
