@@ -15,10 +15,10 @@ Versionning semantics:
 
 __intname__ = 'ofunctions.service_control'
 __author__ = 'Orsiris de Jong'
-__copyright__ = 'Copyright (C) 2012-2020 Orsiris de Jong'
+__copyright__ = 'Copyright (C) 2014-2020 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '0.1.0'
-__build__ = '2020041302'
+__version__ = '0.1.1'
+__build__ = '2020102801'
 
 
 import os
@@ -32,7 +32,7 @@ from command_runner import command_runner
 logger = getLogger()
 
 
-def system_service_handler(service, action):
+def system_service_handler(service: str, action: str) -> bool:
     """Handle Windows / Unix services
     Valid actions are start, stop, restart, status
     Returns True if action succeeded or service is running, False if service does not run

@@ -17,11 +17,12 @@ __intname__ = 'ofunctions.mailer'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2014-2020 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '0.3.2'
-__build__ = '2020041302'
+__version__ = '0.3.3'
+__build__ = '2020102801'
 
 
 import os
+from typing import Union, List, Optional
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -32,9 +33,12 @@ import socket
 import re
 
 
-def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp_server='localhost', smtp_port=25,
-               smtp_user=None, smtp_password=None, security=None, subject=None, body=None, attachment=None,
-               filename=None, html_enabled=False, bcc_mails=None, priority=False, debug=False):
+def send_email(source_mail: str = None, destination_mails: Union[str, List[str]] =None, split_mails: bool = False,
+               smtp_server: str = 'localhost', smtp_port: int = 25,
+               smtp_user: str = None, smtp_password: str = None, security: Union[str, None] = None, subject: str = None,
+               body: str = None, attachment: str = None,
+               filename: str = None, html_enabled: bool = False, bcc_mails: str = None,
+               priority: bool = False, debug: bool = False) -> Union[bool, str]:
     """
 
     :param source_mail:
@@ -68,7 +72,7 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
     if destination_mails is None:
         raise ValueError('No destination mails set')
 
-    def _send_email(address):
+    def _send_email(destination_mail: str) -> Optional[Exception]:
         nonlocal filename
 
         # Create a multipart message and set headers
@@ -176,7 +180,7 @@ def send_email(source_mail=None, destination_mails=None, split_mails=False, smtp
     return 'Refused non RFC 822 mails: {0}'.format(non_rfc822_addresses)
 
 
-def is_mail_address(string):
+def is_mail_address(string: str) -> bool:
     if re.match(r'[^@\s]+@[^@\s]+\.[a-zA-Z0-9]+$', string):
         return True
     else:

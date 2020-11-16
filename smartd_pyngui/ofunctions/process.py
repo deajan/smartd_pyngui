@@ -17,14 +17,15 @@ __intname__ = 'ofunctions.process'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2014-2020 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '0.1.0'
-__build__ = '2020032701'
+__version__ = '0.1.1'
+__build__ = '2020102801'
 
 
 import psutil
+from typing import NoReturn
 
 
-def kill_childs(pid, itself=False):
+def kill_childs(pid: int, itself: bool = False) -> NoReturn:
     """
     Kills all childs of pid (current pid can be obtained with os.getpid()
     Good idea when using multiprocessing, is to call with atexit.register(ofunctions.kill_childs, os.getpid(),)

@@ -17,20 +17,21 @@ __intname__ = 'ofunctions'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2014-2020 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '0.5.0'
-__build__ = '2020040201'
+__version__ = '0.5.2'
+__build__ = '2020102801'
 
 
 import os
 import sys
 import re
 import logging
+from typing import Union, NoReturn, Tuple, List
 import tempfile
 import time
 from logging.handlers import RotatingFileHandler
 
 
-logger = logging.getLogger(__name__)
+#logger = logging.getLogger()
 
 # Logging functions ########################################################
 
@@ -44,17 +45,17 @@ class ContextFilterWorstLevel(logging.Filter):
         self.worst_level = logging.INFO
         super().__init__()
 
-    def filter(self, record):
+    def filter(self, record) -> bool:
         # Examples
         # record.msg = f'{record.msg}'.encode('ascii', errors='backslashreplace')
-        # When using this filter, ysomething can be added to logging.Formatter like '%(something)s'
+        # When using this filter, something can be added to logging.Formatter like '%(something)s'
         # record.something = 'value'
         if record.levelno > self.worst_level:
             self.worst_level = record.levelno
         return True
 
 
-def logger_get_console_handler(multiprocessing_formatter=False):
+def logger_get_console_handler(multiprocessing_formatter: bool = False) -> Union[logging.StreamHandler, None]:
     if multiprocessing_formatter:
         formatter = MP_FORMATTER
     else:
@@ -88,13 +89,14 @@ def logger_get_console_handler(multiprocessing_formatter=False):
             return console_handler
         except OSError as exc:
             print('Cannot log to stderr neither. Message %s' % exc)
-            return False
+            return None
     else:
         console_handler.setFormatter(formatter)
         return console_handler
 
 
-def logger_get_file_handler(log_file, multiprocessing_formatter=False):
+def logger_get_file_handler(log_file: str, multiprocessing_formatter: bool = False)\
+        -> Tuple[Union[RotatingFileHandler, None], Union[str, None]]:
     if multiprocessing_formatter:
         formatter = MP_FORMATTER
     else:
@@ -114,14 +116,16 @@ def logger_get_file_handler(log_file, multiprocessing_formatter=False):
             err_output += '\nUsing [%s]' % temp_log_file
             return file_handler, err_output
         except OSError as exc:
-            print('Cannot create temporary log file either. Will not log to file. Message: %s' % exc)
-            return False
+            msg = 'Cannot create temporary log file either. Will not log to file. Message: %s' % exc
+            print(msg)
+            return None, msg
     else:
         file_handler.setFormatter(formatter)
         return file_handler, err_output
 
 
-def logger_get_logger(log_file=None, temp_log_file=None, console=True, debug=False, multiprocessing_formatter=False):
+def logger_get_logger(log_file : str = None, temp_log_file: str = None, console: bool = True, debug: bool = False,
+                      multiprocessing_formatter: bool = False) -> logging.Logger:
     # If a name is given to getLogger, than modules can't log to the root logger
     f = ContextFilterWorstLevel()
     _logger = logging.getLogger()
@@ -153,7 +157,7 @@ def logger_get_logger(log_file=None, temp_log_file=None, console=True, debug=Fal
             try:
                 os.remove(temp_log_file)
             except OSError:
-                logger.warning('Cannot remove temp log file [%s].' % temp_log_file)
+                _logger.warning('Cannot remove temp log file [%s]. Is another instance accessing the file ?' % temp_log_file)
         file_handler, err_output = logger_get_file_handler(temp_log_file,
                                                            multiprocessing_formatter=multiprocessing_formatter)
         if file_handler:
@@ -162,12 +166,13 @@ def logger_get_logger(log_file=None, temp_log_file=None, console=True, debug=Fal
             if err_output is not None:
                 print(err_output)
                 _logger.warning('Failed to use log file [%s], %s.', log_file, err_output)
+    _logger.propagate = True
     return _logger
 
 
 # Platform specific functions ###################################################
 
-def get_os():
+def get_os() -> NoReturn:
     if os.name == 'nt':
         return 'Windows'
     elif os.name == 'posix':
@@ -181,7 +186,7 @@ def get_os():
         raise OSError("Cannot get os, os.name=[%s]." % os.name)
 
 
-def python_arch():
+def python_arch() -> str:
     if get_os() == "Windows":
         if 'AMD64' in sys.version:
             return 'x64'
@@ -191,14 +196,14 @@ def python_arch():
         return os.uname()[4]
 
 
-def is_64bit_python():
+def is_64bit_python() -> bool:
     # We detect Python verison and not OS version here
     return sys.maxsize > 2 ** 32
 
 
 # Standard functions ############################################################
 
-def time_is_between(current_time, time_range):
+def time_is_between(current_time: str, time_range: tuple) -> bool:
     """
     https://stackoverflow.com/a/45265202/2635443
     print(is_between("11:00", ("09:00", "16:00")))  # True
@@ -211,28 +216,32 @@ def time_is_between(current_time, time_range):
     return time_range[0] <= current_time <= time_range[1]
 
 
-def bytes_to_string(bytes_to_convert):
+def bytes_to_string(bytes_to_convert: List[int], strip_null: bool = False) -> Union[str, None]:
     """
     Litteral bytes to string
-    :param bytes_to_convert: list of bytes
+    :param bytes_to_convert: list of bytes in integer format
     :return: resulting string
     """
-    if not bytes_to_convert:
-        return False
     try:
-        return ''.join(chr(i) for i in bytes_to_convert)
-    except ValueError:
-        return False
+        value = ''.join(chr(i) for i in bytes_to_convert)
+        if strip_null:
+            return value.strip('\x00')
+        else:
+            return value
+    # AttributeError when None object has no strip attribute
+    except (ValueError, TypeError, AttributeError):
+        return None
 
 
-def check_for_virtualization(product_id):
+def check_for_virtualization(product_id: dict) -> Tuple[bool, str]:
     """
     Tries to find hypervisors, needs various WMI results as argument, ie:
-    product_id = [computersystem.Manufacturer, baseboard.Manufacturer, baseboard.Product,
-              bios.Manufacturer, bios.SerialNumber, bios.Version]
+    product_id = {'computersystem': {'Manufacturer': 'xx', 'Model': 'YY'},
+                  'baseboard': {'Manufacturer': 'xx', 'Product': 'yy'},
+                  'bios': {'Manufacturer': 'xx', 'SerialNumber': '1234', 'Version': 'zz'}
+                  }
 
-    :param product_id (list) list of strings that come from various checks above
-    :param return (bool)
+    :param product_id list of strings that come from various checks above
 
     Basic detection
     Win32_ComputerSystem.Model could contain 'KVM'
@@ -248,33 +257,33 @@ def check_for_virtualization(product_id):
     Xen adds 'Xen' to Win32_BIOS.Version (well hopefully)
     """
 
-    for p_id in product_id:
-        if type(p_id) == str:
-            # First try to detect oVirt before detecting Qemu/KVM
-            if re.search('oVirt', p_id, re.IGNORECASE):
-                return True, 'oVirt'
-            elif re.search('VBOX', p_id, re.IGNORECASE):
-                return True, 'VirtualNox'
-            elif re.search('VMWare', p_id, re.IGNORECASE):
-                return True, 'VMWare'
-            elif re.search('Hyper-V', p_id, re.IGNORECASE):
-                return True, 'Hyper-V'
-            elif re.search('Xen', p_id, re.IGNORECASE):
-                return True, 'Xen'
-            elif re.search('KVM', p_id, re.IGNORECASE):
-                return True, 'KVM'
-            elif re.search('qemu', p_id, re.IGNORECASE):
-                return True, 'qemu'
-            elif re.search('bochs', p_id, re.IGNORECASE):
-                return True, 'bochs'
-            # Fuzzy detection
-            elif re.search('VRTUAL', p_id, re.IGNORECASE):
-                return True, 'HYPER-V'
+    for key in product_id:
+        for sub_key in product_id[key]:
+            if type(product_id[key][sub_key]) == str:
+                # First try to detect oVirt before detecting Qemu/KVM
+                if re.search('oVirt', product_id[key][sub_key], re.IGNORECASE):
+                    return True, 'oVirt'
+                elif re.search('VBOX', product_id[key][sub_key], re.IGNORECASE):
+                    return True, 'VirtualNox'
+                elif re.search('VMWare', product_id[key][sub_key], re.IGNORECASE):
+                    return True, 'VMWare'
+                elif re.search('Hyper-V', product_id[key][sub_key], re.IGNORECASE):
+                    return True, 'Hyper-V'
+                elif re.search('Xen', product_id[key][sub_key], re.IGNORECASE):
+                    return True, 'Xen'
+                elif re.search('KVM', product_id[key][sub_key], re.IGNORECASE):
+                    return True, 'KVM'
+                elif re.search('qemu', product_id[key][sub_key], re.IGNORECASE):
+                    return True, 'qemu'
+                elif re.search('bochs', product_id[key][sub_key], re.IGNORECASE):
+                    return True, 'bochs'
+                # Fuzzy detection
+                elif re.search('VRTUAL', product_id[key][sub_key], re.IGNORECASE):
+                    return True, 'HYPER-V'
     return False, 'Physical / Unknown hypervisor'
 
 
-
-def rot13(string):
+def rot13(string: str) -> Union[str, None]:
     """
     Rot13 for only A-Z and a-z characters
     """
@@ -287,7 +296,7 @@ def rot13(string):
         return None
 
 
-def tmbscfe(string):
+def tmbscfe(string: str) -> Union[str, None]:
     """
     The Most Basic Symetric Cipher Function Ever
     Reverse string case and reverse string itself and rot13 it's alphabetical chars
@@ -300,7 +309,7 @@ def tmbscfe(string):
         return None
 
 
-def revac(b, root=True):
+def revac(b: bytes, root=True) -> Union[List[int], bytes]:
     """
     Another very basic symetric cipher function that just makes sure keys don't get stored in cleartext
 
@@ -323,6 +332,7 @@ def revac(b, root=True):
     else:
         result = revac(b[0:hl], root=False) + [b[hl]] + revac(b[hl + 1:l], root=False)
     if root:
+        # function is recursive and works with List[int] in internal calls, but will need to output bytes at the end
         return bytes(result)
     else:
         return result
@@ -352,7 +362,7 @@ def _selftest():
     assert time_is_between("17:00", ("09:00", "16:00")) is False, 'time_is_between failed N°2'
     assert time_is_between("01:15", ("21:30", "04:30")) is True, 'time_is_between failed N°3'
 
-    is_virt, _ = check_for_virtualization(['Xen'])
+    is_virt, _ = check_for_virtualization({'computersystem': {'product': 'Xen'}})
     assert is_virt  == True, 'Virtualization check failed'
 
     b = b'\x65\x66\x67'
