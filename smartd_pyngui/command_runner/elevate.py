@@ -105,7 +105,7 @@ def elevate(fn, *args, **kwargs):
         # Let's assume this will only be compiled with newer nuitka, and remove sloppy detections
         try:
             # Actual if statement not needed, but keeps code inspectors more happy
-            if __nuitka_binary_dir is not None:
+            if __nuitka_binary_dir or '__compiled__' in globals() is not None:
                 is_nuitka_compiled = True
         except NameError:
             is_nuitka_compiled = False
